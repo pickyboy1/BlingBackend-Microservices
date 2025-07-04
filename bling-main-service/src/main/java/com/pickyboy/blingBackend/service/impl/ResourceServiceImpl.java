@@ -367,14 +367,9 @@ public class ResourceServiceImpl extends ServiceImpl<ResourcesMapper, Resources>
         // 【智能恢复】确定恢复位置
         Long targetPreId = determineRestorePosition(resource, request);
 
-        // 使用UpdateWrapper恢复资源
-        LambdaUpdateWrapper<Resources> updateWrapper = new LambdaUpdateWrapper<>();
-        updateWrapper.eq(Resources::getId, resId)
-                    .set(Resources::getIsDeleted, false)
-                    .set(Resources::getPreId, targetPreId);
-
-        boolean updated = update(updateWrapper);
-        if (!updated) {
+        // 使用Mapper方法更新已删除资源的状态，绕过逻辑删除过滤
+        int updated = baseMapper.updateDeletedResource(resId, false, targetPreId);
+        if (updated == 0) {
             throw new BusinessException(ErrorCode.SYSTEM_ERROR, "资源恢复失败");
         }
 

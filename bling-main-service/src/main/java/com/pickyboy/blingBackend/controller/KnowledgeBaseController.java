@@ -172,7 +172,7 @@ public class KnowledgeBaseController {
      *
      * @return 回收站内容
      */
-    @GetMapping("/trash")
+    @GetMapping("/recycle-bin/items")
     public Result<TrashVO> getTrashContent() {
         log.info("获取回收站内容列表");
         TrashVO trash = knowledgeBaseService.getTrashContent();

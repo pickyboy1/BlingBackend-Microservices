@@ -19,6 +19,7 @@ import com.pickyboy.blingBackend.common.utils.CurrentHolder;
 import com.pickyboy.blingBackend.dto.knowledgebase.InsertKnowledgeBaseRequest;
 import com.pickyboy.blingBackend.entity.KnowledgeBases;
 import com.pickyboy.blingBackend.entity.Resources;
+import com.pickyboy.blingBackend.vo.knowledgebase.DeletedKnowledgeBaseVO;
 import com.pickyboy.blingBackend.vo.knowledgebase.KbsWithRecentResourceVo;
 import com.pickyboy.blingBackend.vo.knowledgebase.TrashVO;
 import com.pickyboy.blingBackend.vo.resource.ResourceTreeVo;
@@ -69,6 +70,7 @@ public class KnowledgeBaseServiceImpl extends ServiceImpl<KnowledgeBasesMapper, 
             kbsWithRecentResourceVo.setName(kb.getName());
             kbsWithRecentResourceVo.setIconIndex(kb.getIconIndex());
             kbsWithRecentResourceVo.setVisibility(kb.getVisibility());
+            kbsWithRecentResourceVo.setCoverUrl(kb.getCoverUrl());
 
             if (withRecentResources) {
                 try {
@@ -81,7 +83,7 @@ public class KnowledgeBaseServiceImpl extends ServiceImpl<KnowledgeBasesMapper, 
             }
             return kbsWithRecentResourceVo;
         }).collect(Collectors.toList());
-
+        log.info("{}",kbsWithRecentResourceVos);
         return kbsWithRecentResourceVos;
     }
 
@@ -293,6 +295,9 @@ public class KnowledgeBaseServiceImpl extends ServiceImpl<KnowledgeBasesMapper, 
         if (updateRequest.getVisibility() != null) {
             knowledgeBase.setVisibility(updateRequest.getVisibility());
         }
+        if (updateRequest.getCoverUrl() != null) {
+            knowledgeBase.setCoverUrl(updateRequest.getCoverUrl());
+        }
 
         boolean updated = updateById(knowledgeBase);
         if (!updated) {
@@ -368,9 +373,10 @@ public class KnowledgeBaseServiceImpl extends ServiceImpl<KnowledgeBasesMapper, 
             throw new BusinessException(ErrorCode.NOT_LOGIN_ERROR);
         }
 
-        KnowledgeBases knowledgeBase = getById(kbId);
+        // 使用Mapper方法查询已删除的知识库
+        KnowledgeBases knowledgeBase = baseMapper.selectDeletedById(kbId);
         if (knowledgeBase == null) {
-            throw new BusinessException(ErrorCode.KNOWLEDGE_BASE_NOT_FOUND);
+            throw new BusinessException(ErrorCode.KNOWLEDGE_BASE_NOT_FOUND, "知识库不存在或未被删除");
         }
 
         // 检查权限
@@ -378,9 +384,9 @@ public class KnowledgeBaseServiceImpl extends ServiceImpl<KnowledgeBasesMapper, 
             throw new BusinessException(ErrorCode.KNOWLEDGE_BASE_ACCESS_DENIED);
         }
 
-        knowledgeBase.setIsDeleted(false);
-        boolean updated = updateById(knowledgeBase);
-        if (!updated) {
+        // 使用Mapper方法更新已删除知识库的状态，绕过逻辑删除过滤
+        int updated = baseMapper.updateDeletedKnowledgeBase(kbId, false);
+        if (updated == 0) {
             throw new BusinessException(ErrorCode.SYSTEM_ERROR, "知识库恢复失败");
         }
 
@@ -395,13 +401,8 @@ public class KnowledgeBaseServiceImpl extends ServiceImpl<KnowledgeBasesMapper, 
             throw new BusinessException(ErrorCode.NOT_LOGIN_ERROR);
         }
 
-        // 1. 获取已删除的知识库 (这部分逻辑不变，是一次独立的查询)
-        List<KnowledgeBases> deletedKnowledgeBases = list(
-            new LambdaQueryWrapper<KnowledgeBases>()
-                .eq(KnowledgeBases::getUserId, userId)
-                .eq(KnowledgeBases::getIsDeleted, true)
-                .orderByDesc(KnowledgeBases::getUpdatedAt)
-        );
+        // 1. 获取已删除的知识库（使用Mapper方法绕过逻辑删除过滤）
+        List<com.pickyboy.blingBackend.vo.knowledgebase.DeletedKnowledgeBaseVO> deletedKnowledgeBases = baseMapper.selectDeletedByUserId(userId);
 
         // 2. 【优化点】使用一次JOIN查询，直接获取所有符合条件的已删除文档
         List<Resources> deletedResources = resourceService.listDeletedResourcesInActiveKbs(userId);

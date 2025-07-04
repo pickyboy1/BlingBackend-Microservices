@@ -39,4 +39,10 @@ public class InsertKnowledgeBaseRequest {
     @Min(value = 0, message = "可见性值必须为0或1")
     @Max(value = 1, message = "可见性值必须为0或1")
     private Integer visibility;
+
+    /**
+     * 封面图片URL
+     */
+    @Size(max = 500, message = "封面图片URL长度不能超过500个字符")
+    private String coverUrl;
 }

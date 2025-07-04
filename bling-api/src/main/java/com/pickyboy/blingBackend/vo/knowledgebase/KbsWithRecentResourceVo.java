@@ -1,9 +1,10 @@
 package com.pickyboy.blingBackend.vo.knowledgebase;
 
-import com.pickyboy.blingBackend.entity.Resources;
-import lombok.Data;
-
 import java.util.List;
+
+import com.pickyboy.blingBackend.entity.Resources;
+
+import lombok.Data;
 
 @Data
 public class KbsWithRecentResourceVo {
@@ -12,6 +13,7 @@ public class KbsWithRecentResourceVo {
     private String name;
     private String iconIndex;
     private Integer visibility;
+    private String coverUrl;
 
     private List<Resources> recentResources;
 }

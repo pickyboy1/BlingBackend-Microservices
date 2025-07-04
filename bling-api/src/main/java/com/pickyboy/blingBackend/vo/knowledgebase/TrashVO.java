@@ -18,7 +18,7 @@ public class TrashVO {
     /**
      * 已删除的知识库列表
      */
-    private List<KnowledgeBases> knowledgeBases;
+    private java.util.List<DeletedKnowledgeBaseVO> knowledgeBases;
 
     /**
      * 已删除的文档列表

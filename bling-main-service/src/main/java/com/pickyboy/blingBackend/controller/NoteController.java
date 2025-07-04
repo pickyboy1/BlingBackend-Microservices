@@ -49,12 +49,12 @@ public class NoteController {
      */
     @GetMapping("/notes")
     public Result<List<NoteListVO>> getNoteList(
-            @RequestParam(required = false) Long tagId,
-            @RequestParam(required = false) String keyword,
-            @RequestParam(defaultValue = "1") Integer page,
-            @RequestParam(defaultValue = "20") Integer limit,
-            @RequestParam(defaultValue = "updatedAt") String sortBy,
-            @RequestParam(defaultValue = "desc") String order) {
+            @RequestParam(name = "tagId", required = false) Long tagId,
+            @RequestParam(name = "keyword", required = false) String keyword,
+            @RequestParam(name = "page", defaultValue = "1") Integer page,
+            @RequestParam(name = "limit", defaultValue = "20") Integer limit,
+            @RequestParam(name = "sortBy", defaultValue = "updatedAt") String sortBy,
+            @RequestParam(name = "order", defaultValue = "desc") String order) {
 
         List<NoteListVO> result = noteService.getNoteList(tagId, keyword, page, limit, sortBy, order);
         return Result.success(result);

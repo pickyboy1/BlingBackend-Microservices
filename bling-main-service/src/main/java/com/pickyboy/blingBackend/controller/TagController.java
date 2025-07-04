@@ -42,10 +42,10 @@ public class TagController {
      */
     @GetMapping("/tags")
     public Result<List<TagVO>> getUserTags(
-            @RequestParam(defaultValue = "1") Integer page,
-            @RequestParam(defaultValue = "30") Integer limit,
-            @RequestParam(defaultValue = "count") String sortBy,
-            @RequestParam(defaultValue = "desc") String order) {
+            @RequestParam(name = "page", defaultValue = "1") Integer page,
+            @RequestParam(name = "limit", defaultValue = "30") Integer limit,
+            @RequestParam(name = "sortBy", defaultValue = "count") String sortBy,
+            @RequestParam(name = "order", defaultValue = "desc") String order) {
         List<TagVO> result = tagService.getUserTags(page, limit, sortBy, order);
         return Result.success(result);
     }

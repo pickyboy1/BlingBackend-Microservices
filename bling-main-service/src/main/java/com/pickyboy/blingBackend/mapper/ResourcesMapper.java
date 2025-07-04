@@ -3,6 +3,7 @@ package com.pickyboy.blingBackend.mapper;
 import java.util.List;
 
 import org.apache.ibatis.annotations.Param;
+import org.apache.ibatis.annotations.Update;
 
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import com.pickyboy.blingBackend.entity.Resources;
@@ -132,4 +133,16 @@ public interface ResourcesMapper extends BaseMapper<Resources> {
      * @return 用户编辑历史列表
      */
     List<ActivityRecord> getUserEditHistory(@Param("userId") Long userId, @Param("offset") Integer offset, @Param("limit") Integer limit);
+
+    // ====== 【逻辑删除相关】恢复操作方法 ======
+
+    /**
+     * 更新已删除资源的状态（用于恢复操作）
+     * @param resourceId 资源ID
+     * @param isDeleted 删除状态
+     * @param preId 父节点ID（恢复位置）
+     * @return 影响行数
+     */
+    @Update("UPDATE resources SET is_deleted = #{isDeleted}, pre_id = #{preId}, updated_at = NOW() WHERE id = #{resourceId} AND is_deleted = 1")
+    int updateDeletedResource(@Param("resourceId") Long resourceId, @Param("isDeleted") Boolean isDeleted, @Param("preId") Long preId);
 }
