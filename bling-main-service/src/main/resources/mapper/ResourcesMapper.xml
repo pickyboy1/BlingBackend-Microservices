@@ -1,0 +1,186 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.pickyboy.blingBackend.mapper.ResourcesMapper">
+
+    <select id="selectDeletedResourcesInActiveKbs" resultType="com.pickyboy.blingBackend.entity.Resources">
+        SELECT
+            r.*
+        FROM
+            resources r
+        JOIN
+            knowledge_bases kb ON r.knowledge_base_id = kb.id
+        WHERE
+            r.user_id = #{userId}
+            AND r.is_deleted = 1
+            AND kb.is_deleted = 0
+        ORDER BY
+            r.updated_at DESC
+    </select>
+
+    <select id="selectResourceInActiveKb" resultType="com.pickyboy.blingBackend.entity.Resources">
+        SELECT
+            r.*
+        FROM
+            resources r
+        JOIN
+            knowledge_bases kb ON r.knowledge_base_id = kb.id
+        WHERE
+            r.id = #{resourceId}
+            AND r.is_deleted = 0
+            AND kb.is_deleted = 0
+    </select>
+
+    <select id="selectResourceInActiveKbWithUser" resultType="com.pickyboy.blingBackend.entity.Resources">
+        SELECT
+            r.*
+        FROM
+            resources r
+        JOIN
+            knowledge_bases kb ON r.knowledge_base_id = kb.id
+        WHERE
+            r.id = #{resourceId}
+            AND r.is_deleted = 0
+            AND kb.is_deleted = 0
+            AND (
+                -- 条件一：用户是该资源的所有者
+                r.user_id = #{userId}
+                -- 条件二：或者，资源和其所属知识库同时为公开
+                OR (r.visibility = 1 AND kb.visibility = 1)
+            )
+    </select>
+
+    <select id="selectDeletedResourceInActiveKb" resultType="com.pickyboy.blingBackend.entity.Resources">
+        SELECT
+            r.*
+        FROM
+            resources r
+        JOIN
+            knowledge_bases kb ON r.knowledge_base_id = kb.id
+        WHERE
+            r.id = #{resourceId}
+            AND r.is_deleted = 1
+            AND kb.is_deleted = 0
+            AND r.user_id = #{userId}
+    </select>
+
+    <select id="selectResourceByCommentInActiveKb" resultType="com.pickyboy.blingBackend.entity.Resources">
+        SELECT
+            r.*
+        FROM
+            comments c
+        JOIN
+            resources r ON c.resource_id = r.id
+        JOIN
+            knowledge_bases kb ON r.knowledge_base_id = kb.id
+        WHERE
+            c.id = #{commentId}
+            AND r.is_deleted = 0
+            AND kb.is_deleted = 0
+    </select>
+
+
+
+    <!-- 【核心优化】统一的递归查询 - 查询所有子孙节点（无论删除状态） -->
+    <!-- ⚠️ 注意：此查询使用WITH RECURSIVE语法，需要MySQL 8.0+支持 -->
+    <select id="selectAllDescendants" resultType="com.pickyboy.blingBackend.entity.Resources">
+        WITH RECURSIVE descendants AS (
+            -- 递归起点：直接子节点（无论删除状态）
+            SELECT *, 1 as level
+            FROM resources
+            WHERE pre_id = #{parentId}
+
+            UNION ALL
+
+            -- 递归部分：子节点的子节点（无论删除状态）
+            SELECT r.*, d.level + 1
+            FROM resources r
+            INNER JOIN descendants d ON r.pre_id = d.id
+        )
+        SELECT * FROM descendants ORDER BY level, id
+    </select>
+
+    <!-- 【性能优化】批量更新知识库ID -->
+    <update id="batchUpdateKnowledgeBaseId">
+        UPDATE resources
+        SET knowledge_base_id = #{newKbId}
+        WHERE id IN
+        <foreach collection="resourceIds" item="resourceId" open="(" separator="," close=")">
+            #{resourceId}
+        </foreach>
+    </update>
+
+    <!-- 【性能优化】批量逻辑删除 -->
+    <update id="batchLogicalDelete">
+        UPDATE resources
+        SET is_deleted = 1, updated_at = NOW()
+        WHERE id IN
+        <foreach collection="resourceIds" item="resourceId" open="(" separator="," close=")">
+            #{resourceId}
+        </foreach>
+    </update>
+
+    <!-- ====== 【原子操作】计数器更新SQL ====== -->
+
+    <!-- 原子增加资源浏览量 -->
+    <update id="incrementViewCount">
+        UPDATE resources
+        SET view_count = view_count + 1
+        WHERE id = #{resourceId}
+    </update>
+
+    <!-- 原子增加资源点赞数 -->
+    <update id="incrementLikeCount">
+        UPDATE resources
+        SET like_count = like_count + 1
+        WHERE id = #{resourceId}
+    </update>
+
+    <!-- 原子减少资源点赞数 -->
+    <update id="decrementLikeCount">
+        UPDATE resources
+        SET like_count = GREATEST(0, like_count - 1)
+        WHERE id = #{resourceId}
+    </update>
+
+    <!-- 原子增加资源评论数 -->
+    <update id="incrementCommentCount">
+        UPDATE resources
+        SET comment_count = comment_count + 1
+        WHERE id = #{resourceId}
+    </update>
+
+    <!-- 原子减少资源评论数 -->
+    <update id="decrementCommentCount">
+        UPDATE resources
+        SET comment_count = GREATEST(0, comment_count - 1)
+        WHERE id = #{resourceId}
+    </update>
+
+    <!-- 获取用户编辑历史 -->
+    <select id="getUserEditHistory" resultType="com.pickyboy.blingBackend.vo.user.ActivityRecord">
+        SELECT
+            r.id AS resourceId,
+            r.title AS resourceTitle,
+            r.type AS resourceType,
+            r.knowledge_base_id AS kbId,
+            kb.name AS kbName,
+            r.user_id AS authorId,
+            u.nickname AS authorName,
+            r.updated_at AS actionAt,
+            CASE
+                WHEN r.is_deleted = 1 THEN 'ARTICLE_DELETED'
+                WHEN kb.is_deleted = 1 THEN 'KB_DELETED'
+                WHEN u.is_deleted = 1 THEN 'AUTHOR_DELETED'
+                WHEN (r.visibility = 0 OR kb.visibility = 0) AND r.user_id != #{userId} THEN 'PRIVATE'
+                ELSE 'NORMAL'
+            END AS status
+        FROM resources r
+        LEFT JOIN knowledge_bases kb ON r.knowledge_base_id = kb.id
+        LEFT JOIN users u ON r.user_id = u.id
+        WHERE r.user_id = #{userId}
+          AND r.type != 'folder'
+        ORDER BY r.updated_at DESC
+        LIMIT #{offset}, #{limit}
+    </select>
+
+</mapper>

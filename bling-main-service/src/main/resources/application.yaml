@@ -1,0 +1,35 @@
+server:
+  port: 3000
+  servlet:
+    context-path: /api
+spring:
+  application:
+    name: bling-main-service # 【关键改动】为您的核心服务命名
+  profiles:
+    active: dev
+  config:
+    import:
+      - nacos:bling-common-dev.yaml?refresh=true
+  cloud:
+    nacos:
+      # Nacos 服务器的地址
+      server-addr: 192.168.31.128:8848
+      config:
+        # 配置文件格式
+        file-extension: yaml
+
+pickyboy:
+  auth:
+    excludePaths:
+      - /api/auth/login
+      - /api/auth/register
+      - /api/uploads/**
+      - /api/test/public
+      - /error
+      - /favicon.ico
+      - /swagger-ui/**
+      - /v3/api-docs/**
+      - /doc.html
+      - /webjars/**
+      - /actuator/**
+
