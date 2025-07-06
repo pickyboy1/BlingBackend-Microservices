@@ -22,6 +22,7 @@ import com.pickyboy.blingBackend.vo.note.NoteDetailVO;
 import com.pickyboy.blingBackend.vo.note.NoteListVO;
 import com.pickyboy.blingBackend.vo.tag.TagSimpleVO;
 
+import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -131,7 +132,8 @@ public class NoteServiceImpl extends ServiceImpl<NotesMapper, Notes> implements 
         Notes note = new Notes();
         note.setUserId(userId);
         note.setContent(createNoteRequest.getContent());
-        // 从内容生成title
+
+        // 从内容生成title,会判断内容是否为空
         note.setTitle(generateTitleFromContent(createNoteRequest.getContent()));
 
         boolean saved = save(note);

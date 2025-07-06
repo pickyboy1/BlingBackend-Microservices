@@ -16,7 +16,6 @@ public class CreateNoteRequest {
     /**
      * 小记的完整内容
      */
-    @NotBlank(message = "小记内容不能为空")
     @Size(max = 65535, message = "小记内容长度不能超过65535个字符")
     private String content;
 
