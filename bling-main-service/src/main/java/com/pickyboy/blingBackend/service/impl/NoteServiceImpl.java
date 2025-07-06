@@ -197,7 +197,9 @@ public class NoteServiceImpl extends ServiceImpl<NotesMapper, Notes> implements 
         // 更新小记内容和标题
         note.setContent(updateNoteRequest.getContent());
         // 从新内容生成新的title
-        note.setTitle(generateTitleFromContent(updateNoteRequest.getContent()));
+        note.setTitle(generateTitleFromContent(
+                getFirstLineTextContent(updateNoteRequest.getContent().trim()
+                        .substring(0,Math.min(50, updateNoteRequest.getContent().length())))));
 
         boolean updated = updateById(note);
         if (!updated) {
