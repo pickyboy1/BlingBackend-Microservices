@@ -22,7 +22,6 @@ import com.pickyboy.blingBackend.vo.note.NoteDetailVO;
 import com.pickyboy.blingBackend.vo.note.NoteListVO;
 import com.pickyboy.blingBackend.vo.tag.TagSimpleVO;
 
-import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -133,8 +132,11 @@ public class NoteServiceImpl extends ServiceImpl<NotesMapper, Notes> implements 
         note.setUserId(userId);
         note.setContent(createNoteRequest.getContent());
 
+        String oriContent = createNoteRequest.getContent().trim();
+        String headContent = oriContent.substring(0, Math.min(oriContent.length(), 50));
+        String purifiedContent = getFirstLineTextContent(headContent);
         // 从内容生成title,会判断内容是否为空
-        note.setTitle(generateTitleFromContent(createNoteRequest.getContent()));
+        note.setTitle(generateTitleFromContent(purifiedContent));
 
         boolean saved = save(note);
         if (!saved) {
@@ -150,6 +152,7 @@ public class NoteServiceImpl extends ServiceImpl<NotesMapper, Notes> implements 
         Notes savedNote = getById(note.getId());
         return convertToNoteDetailVO(savedNote);
     }
+
 
     @Override
     public NoteDetailVO getNoteDetail(Long noteId) {
@@ -413,6 +416,88 @@ public class NoteServiceImpl extends ServiceImpl<NotesMapper, Notes> implements 
 
         return vo;
     }
+
+    public static final Map<String, Integer> BLOCK_LEVEL_TAG_MAP = new HashMap<String, Integer>() {{
+        // Headers
+        put("h1", 1); put("/h1", -1);
+        put("h2", 1); put("/h2", -1);
+        put("h3", 1); put("/h3", -1);
+        put("h4", 1); put("/h4", -1);
+        put("h5", 1); put("/h5", -1);
+        put("h6", 1); put("/h6", -1);
+
+        // Paragraph and text containers
+        put("p", 1); put("/p", -1);
+        put("blockquote", 1); put("/blockquote", -1);
+        put("pre", 1); put("/pre", -1);
+        put("hr", -1);
+
+        // Lists
+        put("ul", 1); put("/ul", -1);
+        put("ol", 1); put("/ol", -1);
+        put("li", 1); put("/li", -1);
+        put("dl", 1); put("/dl", -1);
+        put("dt", 1); put("/dt", -1);
+        put("dd", 1); put("/dd", -1);
+
+        // Main layout and semantic elements
+        put("div", 1); put("/div", -1);
+        put("main", 1); put("/main", -1);
+        put("section", 1); put("/section", -1);
+        put("article", 1); put("/article", -1);
+        put("aside", 1); put("/aside", -1);
+        put("header", 1); put("/header", -1);
+        put("footer", 1); put("/footer", -1);
+        put("nav", 1); put("/nav", -1);
+        put("figure", 1); put("/figure", -1);
+        put("figcaption", 1); put("/figcaption", -1);
+
+        // Forms
+        put("form", 1); put("/form", -1);
+        put("fieldset", 1); put("/fieldset", -1);
+
+        // Tables
+        put("table", 1); put("/table", -1);
+
+        // Others
+        put("address", 1); put("/address", -1);
+
+        // Forced line break
+        put("br", -1);put("br/",-1);
+    }};
+/*
+*
+* 去除文本中的HTML标签
+* */
+    private String getFirstLineTextContent(String headContent) {
+        StringBuilder res = new StringBuilder();
+        StringBuilder temp = new StringBuilder();
+        Deque<Character> stack = new ArrayDeque<>();
+        for(char c : headContent.toCharArray()){
+            if(c=='<'){
+                // 把之前缓存的字符加入结果
+                res.append( temp);
+                temp.setLength(0);
+                stack.push(c);
+            }else if(c=='>'){
+                // 匹配到换行标签,结束并返回结果
+                if(BLOCK_LEVEL_TAG_MAP.getOrDefault(temp.toString(),999).equals(-1 )){
+                    return res.toString();
+                }
+                // 清空标签内容,继续匹配
+                temp.setLength(0);
+            }else {
+                // 不在标签内的文本,缓存
+               temp.append(c);
+            }
+        }
+        if(!stack.isEmpty()){
+            return res.toString();
+        }
+        return res.append( temp).toString();
+    }
+
+
 
     /**
      * 从content生成title（前200字符）
