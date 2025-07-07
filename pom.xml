@@ -13,6 +13,7 @@
         <module>bling-common</module>
         <module>bling-main-service</module>
         <module>bling-gateway</module>
+        <module>bling-client-demo</module>
     </modules>
 
     <properties>

@@ -2,6 +2,7 @@ server:
   port: 3001
   servlet:
     context-path: /api
+
 spring:
   application:
     name: bling-main-service # 【关键改动】为您的核心服务命名
@@ -17,19 +18,68 @@ spring:
       config:
         # 配置文件格式
         file-extension: yaml
+  # Jackson序列化配置
+  jackson:
+    enabled: true
+  # Security配置
+  security:
+    enabled: true
+  # Redis配置（如果需要使用Redis）
+  data:
+    redis:
+      enabled: true
+
+# ===============================
+# 通用模块条件配置
+# ===============================
+common:
+  config:
+    filter:
+      # 启用用户上下文过滤器
+      enabled: true
+      # 开启debug日志，方便调试
+      debug: true
+
+# ===============================
+# MyBatis-Plus配置
+# ===============================
+mybatis-plus:
+  # 启用MyBatis-Plus功能
+  enabled: true
+  auto-fill:
+    # 启用自动填充功能
+    enabled: true
+
+# ===============================
+# 对象存储配置（按需启用）
+# ===============================
+minio:
+  # 如果需要使用MinIO，请启用并配置
+  enabled: true
+  # endpoint: http://localhost:9000
+  # access-key: minioadmin
+  # secret-key: minioadmin
+
+# ===============================
+# 已废弃的认证配置（保持禁用）
+# ===============================
+yuque:
+  jwt:
+    # 登录需要使用
+    enabled: true
 
 pickyboy:
   auth:
-    excludePaths:
-      - /api/auth/login
-      - /api/auth/register
-      - /api/uploads/**
-      - /api/test/public
-      - /error
-      - /favicon.ico
-      - /swagger-ui/**
-      - /v3/api-docs/**
-      - /doc.html
-      - /webjars/**
-      - /actuator/**
+    # 认证已迁移到网关，保持禁用状态
+    enabled: false
+
+# ===============================
+# 日志配置
+# ===============================
+logging:
+  level:
+    com.pickyboy.blingBackend: DEBUG
+    com.pickyboy.blingBackend.common.filter.UserContextFilter: DEBUG
+
+
 

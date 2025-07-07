@@ -1,0 +1,24 @@
+server:
+  port: 3003
+
+spring:
+  application:
+    name: bling-client-demo
+  profiles:
+    active: dev
+  cloud:
+    nacos:
+      server-addr: 192.168.31.128:8848
+      discovery:
+        namespace: public
+        group: DEFAULT_GROUP
+
+
+# ===============================
+# 日志配置
+# ===============================
+logging:
+  level:
+    com.pickyboy.blingBackend: DEBUG
+    com.alibaba.cloud.nacos: DEBUG
+    feign: DEBUG

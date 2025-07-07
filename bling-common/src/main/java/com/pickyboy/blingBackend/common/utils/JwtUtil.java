@@ -6,10 +6,8 @@ import com.pickyboy.blingBackend.common.exception.JwtException;
 import io.jsonwebtoken.*;
 import io.jsonwebtoken.security.Keys;
 import io.jsonwebtoken.security.SignatureException;
-import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 
 import javax.crypto.SecretKey;
@@ -19,11 +17,11 @@ import java.util.Map;
 
 /**
  * JWT工具类
+ * Bean声明在JWT配置类中，只有在JWT启用时才会创建
  *
  * @author pickyboy
  */
 @Slf4j
-@Component
 @RequiredArgsConstructor
 public class JwtUtil {
 
@@ -157,23 +155,10 @@ public class JwtUtil {
         Long issuedAt = ((Number) claims.get("iat")).longValue();
         Long expiration = claims.getExpiration().getTime();
 
-        return new UserContext(userId, username, issuedAt, expiration);
-    }
-
-    /**
-     * 从HTTP请求头中提取Token
-     *
-     * @param request HTTP请求
-     * @return Token字符串，如果不存在返回null
-     */
-    public String extractTokenFromRequest(HttpServletRequest request) {
-        String bearerToken = request.getHeader(jwtProperties.getHeaderName());
-
-        if (StringUtils.hasText(bearerToken) && bearerToken.startsWith(jwtProperties.getTokenPrefix())) {
-            return bearerToken.substring(jwtProperties.getTokenPrefix().length());
-        }
-
-        return null;
+        UserContext userContext = new UserContext();
+        userContext.setUserId(userId);
+        userContext.setUsername(username);
+        return userContext;
     }
 
     /**
@@ -197,8 +182,6 @@ public class JwtUtil {
         Claims claims = parseToken(token);
         return (String) claims.get("username");
     }
-
-
 
     /**
      * 检查Token是否即将过期

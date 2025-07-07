@@ -1,8 +1,6 @@
 package com.pickyboy.blingBackend.common.utils;
 
 import com.pickyboy.blingBackend.common.config.MinioConfig;
-
-
 import com.pickyboy.blingBackend.common.vo.upload.UploadURLResponse;
 import io.minio.*;
 import io.minio.http.Method;
@@ -11,14 +9,18 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.stereotype.Component;
 
 import java.net.URL;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
+/**
+ * MinIO对象存储工具类
+ * Bean声明在MinioConfig配置类中，只有在MinIO启用时才会创建
+ *
+ * @author pickyboy
+ */
 @Slf4j
-@Component
 @RequiredArgsConstructor
 public class MinioUtil {
 
@@ -167,7 +169,7 @@ public class MinioUtil {
      * 服务启动时执行，检查并创建所有配置的存储桶
      */
     @PostConstruct
-    private void initBuckets() {
+    public void initBuckets() {
         try {
             for (String bucketName : minioConfig.getBucket().values()) {
                 boolean found = minioClient.bucketExists(io.minio.BucketExistsArgs.builder().bucket(bucketName).build());

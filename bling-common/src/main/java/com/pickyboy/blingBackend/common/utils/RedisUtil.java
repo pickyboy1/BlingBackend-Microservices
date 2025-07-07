@@ -3,12 +3,16 @@ package com.pickyboy.blingBackend.common.utils;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.core.ZSetOperations;
-import org.springframework.stereotype.Component;
 
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
-@Component
+/**
+ * Redis工具类
+ * Bean声明在RedisConfig配置类中，只有在Redis启用时才会创建
+ *
+ * @author pickyboy
+ */
 @RequiredArgsConstructor // 使用Lombok自动注入final字段
 public class RedisUtil {
 

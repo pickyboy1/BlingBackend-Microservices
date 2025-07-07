@@ -1,0 +1,105 @@
+# Bling 通用模块配置示例
+# 本文件展示了所有支持条件加载的配置项
+
+# ===============================
+# 通用配置
+# ===============================
+common:
+  config:
+    filter:
+      # 是否启用用户上下文过滤器（默认: true）
+      enabled: true
+      # 是否开启debug日志模式（默认: false）
+      debug: false
+
+# ===============================
+# Spring 框架配置
+# ===============================
+spring:
+  # Jackson JSON序列化配置
+  jackson:
+    # 是否启用Jackson配置（默认: true）
+    enabled: true
+    default-property-inclusion: non_null
+
+  # Spring Security配置
+  security:
+    # 是否启用Security配置（默认: true）
+    enabled: true
+
+  # Redis配置
+  data:
+    redis:
+      # 是否启用Redis配置（默认: true，如果有redis依赖）
+      enabled: true
+
+
+# ===============================
+# MyBatis-Plus配置
+# ===============================
+mybatis-plus:
+  # 是否启用MyBatis-Plus配置（默认: true）
+  enabled: true
+
+  # 自动填充配置
+  auto-fill:
+    # 是否启用自动填充功能（默认: true）
+    enabled: true
+
+# ===============================
+# MinIO对象存储配置
+# ===============================
+minio:
+  # 是否启用MinIO配置（默认: false）
+  enabled: false
+  # MinIO服务端点
+  endpoint: http://localhost:9000
+  # 访问密钥
+  access-key: minioadmin
+  # 秘密密钥
+  secret-key: minioadmin
+  # 存储桶配置
+  bucket:
+    default: bling-bucket
+    image: bling-images
+    document: bling-documents
+
+# ===============================
+# JWT认证配置（已废弃，认证已迁移到网关）
+# ===============================
+yuque:
+  jwt:
+    # 是否启用JWT配置（默认: false，建议使用网关认证）
+    enabled: false
+
+
+# ===============================
+# 认证过滤器配置（已废弃，认证已迁移到网关）
+# ===============================
+pickyboy:
+  auth:
+    # 是否启用认证配置（默认: false，建议使用网关认证）
+    enabled: false
+
+
+# ===============================
+# 配置说明
+# ===============================
+# 🎯 默认启用的功能（matchIfMissing=true）:
+#   - common.config.filter.enabled: 用户上下文过滤器
+#   - spring.jackson.enabled: Jackson JSON序列化
+#   - spring.security.enabled: Spring Security
+#   - spring.data.redis.enabled: Redis缓存
+#   - mybatis-plus.enabled: MyBatis-Plus ORM
+#   - mybatis-plus.auto-fill.enabled: 自动填充
+#
+# 🎯 默认禁用的功能（matchIfMissing=false）:
+#   - minio.enabled: MinIO对象存储
+#   - yuque.jwt.enabled: JWT认证（已废弃）
+#   - pickyboy.auth.enabled: 认证过滤器（已废弃）
+#
+# 🎯 设计原则:
+# 1. 通用功能默认启用，特殊功能按需启用
+# 2. 已废弃功能默认禁用，避免配置冲突
+# 3. 网关专门负责认证，业务服务专注业务逻辑
+# 4. 如果依赖的类不存在，即使enabled=true也不会创建Bean

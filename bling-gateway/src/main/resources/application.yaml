@@ -4,9 +4,20 @@ server:
 spring:
   application:
     name: bling-gateway
+  # Jackson序列化配置 - 网关需要处理JSON
+  jackson:
+    enabled: true
+  # Security配置 - 网关需要密码加密器用于JWT验证
+  security:
+    enabled: true
+  # Redis配置 - 网关可能需要缓存Token黑名单等
+  data:
+    redis:
+      enabled: false
   config:
     import:
       - nacos:${spring.application.name}-${spring.profiles.active}.yaml?refresh=true
+      - nacos:bling-jwt-auth.yaml?refresh=true
   profiles:
     active: dev
   cloud:
@@ -18,10 +29,41 @@ spring:
       config:
         file-extension: yaml
 
+# ===============================
+# 网关专用条件配置
+# ===============================
+
+# 用户上下文过滤器 - 网关不需要，业务由网关认证过滤器处理
+common:
+  config:
+    filter:
+      enabled: false  # 网关不需要用户上下文过滤器
+      debug: false
+
+# MyBatis-Plus配置 - 网关通常不直接操作数据库
+mybatis-plus:
+  enabled: false  # 网关不需要数据库操作
+  auto-fill:
+    enabled: false  # 网关不需要自动填充
+
+# MinIO配置 - 网关不需要文件存储
+minio:
+  enabled: false
+
+# JWT配置 - 网关需要JWT功能进行认证
+yuque:
+  jwt:
+    enabled: true  # 网关需要JWT功能
 
 
+# 认证过滤器配置 - 网关需要认证功能
+pickyboy:
+  auth:
+    enabled: true  # 网关需要认证功能
 
+# ===============================
 # 日志配置
+# ===============================
 logging:
   level:
     com.pickyboy.blingBackend: DEBUG
