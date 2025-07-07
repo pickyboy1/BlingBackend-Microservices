@@ -12,6 +12,7 @@
         <module>bling-api</module>
         <module>bling-common</module>
         <module>bling-main-service</module>
+        <module>bling-gateway</module>
     </modules>
 
     <properties>
@@ -19,7 +20,8 @@
         <maven.compiler.target>21</maven.compiler.target>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <spring-boot.version>3.2.6</spring-boot.version>
-        <spring-cloud-alibaba.version>2023.0.1.2</spring-cloud-alibaba.version>
+        <spring-cloud.version>2023.0.2</spring-cloud.version>
+        <spring-cloud-alibaba.version>2023.0.1.0</spring-cloud-alibaba.version>
         <mybatis-plus.version>3.5.9</mybatis-plus.version>
         <mybatis-spring.version>3.0.3</mybatis-spring.version>
         <jjwt.version>0.12.6</jjwt.version>
@@ -32,6 +34,13 @@
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-dependencies</artifactId>
                 <version>${spring-boot.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+            <dependency>
+                <groupId>org.springframework.cloud</groupId>
+                <artifactId>spring-cloud-dependencies</artifactId>
+                <version>${spring-cloud.version}</version>
                 <type>pom</type>
                 <scope>import</scope>
             </dependency>
@@ -114,6 +123,7 @@
                         <arg>-parameters</arg>
                     </compilerArgs>
                 </configuration>
+                <version>3.14.0</version>
             </plugin>
             <plugin>
                 <groupId>org.springframework.boot</groupId>

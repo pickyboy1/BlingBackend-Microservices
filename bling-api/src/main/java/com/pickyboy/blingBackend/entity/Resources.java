@@ -105,6 +105,10 @@ public class Resources implements Serializable {
     private Integer favoriteCount;
 
     /**
+     * 热度分
+     */
+    private Integer score;
+    /**
      * 创建时间
      */
     @TableField(fill = FieldFill.INSERT)

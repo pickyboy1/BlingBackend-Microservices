@@ -1,0 +1,29 @@
+server:
+  port: 3000
+
+spring:
+  application:
+    name: bling-gateway
+  config:
+    import:
+      - nacos:${spring.application.name}-${spring.profiles.active}.yaml?refresh=true
+  profiles:
+    active: dev
+  cloud:
+    nacos:
+      server-addr: 192.168.31.128:8848
+      discovery:
+        namespace: public
+        group: DEFAULT_GROUP
+      config:
+        file-extension: yaml
+
+
+
+
+# 日志配置
+logging:
+  level:
+    com.pickyboy.blingBackend: DEBUG
+    org.springframework.cloud.gateway: DEBUG
+    com.alibaba.cloud.nacos: DEBUG
