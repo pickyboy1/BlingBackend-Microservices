@@ -126,6 +126,20 @@ public interface ResourcesMapper extends BaseMapper<Resources> {
     int decrementCommentCount(@Param("resourceId") Long resourceId);
 
     /**
+     * 原子增加资源收藏数
+     * @param resourceId 资源ID
+     * @return 影响行数
+     */
+    int incrementFavoriteCount(@Param("resourceId") Long resourceId);
+
+    /**
+     * 原子减少资源收藏数
+     * @param resourceId 资源ID
+     * @return 影响行数
+     */
+    int decrementFavoriteCount(@Param("resourceId") Long resourceId);
+
+    /**
      * 获取用户编辑历史
      * @param userId 用户ID
      * @param offset 偏移量

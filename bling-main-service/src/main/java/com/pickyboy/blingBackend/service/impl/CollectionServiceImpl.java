@@ -1,8 +1,12 @@
 package com.pickyboy.blingBackend.service.impl;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.stream.Collectors;
 
+import com.pickyboy.blingBackend.common.constants.KafkaTopicConstants;
+import com.pickyboy.blingBackend.dto.kafka.ArticleScoreEvent;
+import com.pickyboy.blingBackend.service.KafkaProducerService;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -10,6 +14,7 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.pickyboy.blingBackend.common.exception.BusinessException;
 import com.pickyboy.blingBackend.common.exception.ErrorCode;
 import com.pickyboy.blingBackend.common.utils.CurrentHolder;
+import com.pickyboy.blingBackend.mapper.ResourcesMapper;
 import com.pickyboy.blingBackend.dto.collection.CollectionGroupCreateRequest;
 import com.pickyboy.blingBackend.dto.collection.CollectionItemCreateRequest;
 import com.pickyboy.blingBackend.entity.FavoriteGroups;
@@ -37,6 +42,8 @@ public class CollectionServiceImpl implements ICollectionService {
     private final FavoriteGroupsMapper favoriteGroupsMapper;
     private final FavoritesMapper favoritesMapper;
     private final IResourceService resourceService;
+    private final KafkaProducerService kafkaProducerService;
+    private final ResourcesMapper resourcesMapper;
 
     @Override
     public List<CollectionGroup> getUserCollectionGroups() {
@@ -172,9 +179,17 @@ public class CollectionServiceImpl implements ICollectionService {
         favorite.setResourceId(request.getResourceId());
         favoritesMapper.insert(favorite);
 
+        // todo: 考虑kafka聚合处理
         // 【修复并发问题】原子操作增加分组收藏数量
         favoriteGroupsMapper.incrementGroupCount(groupId);
 
+        // 【新增】原子操作增加资源收藏数
+        resourcesMapper.incrementFavoriteCount(request.getResourceId());
+
+        // 触发计分事件
+        var event = new ArticleScoreEvent(request.getResourceId(),currentUserId, ArticleScoreEvent.EventType.FAVORITE,
+                ArticleScoreEvent.EventType.FAVORITE.getScoreChange(), LocalDateTime.now());
+        kafkaProducerService.sendMessage(KafkaTopicConstants.TOPIC_ARTICLE_SCORE_CHANGE,request.getResourceId().toString(),event);
         log.info("添加文章到收藏夹成功: groupId={}, resourceId={}", groupId, request.getResourceId());
     }
 
@@ -207,8 +222,16 @@ public class CollectionServiceImpl implements ICollectionService {
         // 删除收藏记录
         favoritesMapper.deleteById(favorite.getId());
 
+        // todo: kafka 聚合处理
         // 【修复并发问题】原子操作减少分组收藏数量
         favoriteGroupsMapper.decrementGroupCount(groupId);
+
+        // 【新增】原子操作减少资源收藏数
+        resourcesMapper.decrementFavoriteCount(articleId);
+        // 触发计分,用于推荐系统
+        var event = new ArticleScoreEvent(articleId,currentUserId, ArticleScoreEvent.EventType.UNFAVORITE,
+                ArticleScoreEvent.EventType.UNFAVORITE.getScoreChange(),LocalDateTime.now());
+        kafkaProducerService.sendMessage(KafkaTopicConstants.TOPIC_ARTICLE_SCORE_CHANGE,articleId.toString(),event);
 
         log.info("从收藏夹移除文章成功: groupId={}, articleId={}", groupId, articleId);
     }

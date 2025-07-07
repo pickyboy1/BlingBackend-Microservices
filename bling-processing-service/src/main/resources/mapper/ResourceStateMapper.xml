@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.pickyboy.blingBackend.mapper.ResourceStateMapper">
+
+    <!-- 查询近7天的热门文章，联查作者信息，按score排序 -->
+    <select id="selectHotArticlesWithAuthor" resultType="com.pickyboy.blingBackend.vo.cache.HotArticleVO">
+        SELECT
+            r.id,
+            r.knowledge_base_id AS knowledgeBaseId,
+            r.pre_id AS preId,
+            r.user_id AS userId,
+            r.title,
+            r.type,
+            r.content,
+            r.visibility,
+            r.published_at AS publishedAt,
+            r.view_count AS viewCount,
+            r.like_count AS likeCount,
+            r.comment_count AS commentCount,
+            r.favorite_count AS favoriteCount,
+            r.score,
+            r.created_at AS createdAt,
+            r.updated_at AS updatedAt,
+            u.nickname AS authorNickname,
+            u.avatar_url AS authorAvatarUrl
+        FROM
+            resources r
+        LEFT JOIN
+            users u ON r.user_id = u.id
+        WHERE
+            r.status = 1
+            AND r.is_deleted = 0
+            AND r.published_at IS NOT NULL
+            AND r.published_at >= DATE_SUB(NOW(), INTERVAL 7 DAY)
+            AND u.is_deleted = 0
+        ORDER BY
+            r.score DESC
+        LIMIT #{limit}
+    </select>
+
+</mapper>

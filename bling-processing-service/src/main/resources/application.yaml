@@ -1,18 +1,16 @@
 server:
-  port: 3001
-  servlet:
-    context-path: /api
+  port: 3004
 
 spring:
   application:
-    name: bling-main-service # 【关键改动】为您的核心服务命名
+    name: bling-processing-service # 【关键改动】为您的核心服务命名
   profiles:
     active: dev
   config:
     import:
       - nacos:bling-common-dev.yaml?refresh=true
       - nacos:kafka-common.yaml?refresh=true
-      - nacos:kafka-producer-defaults.yaml?refresh=true # 如果该服务需要生产消息
+      - nacos:kafka-consumer-defaults.yaml?refresh=true
   cloud:
     nacos:
       # Nacos 服务器的地址
@@ -20,12 +18,24 @@ spring:
       config:
         # 配置文件格式
         file-extension: yaml
+  kafka:
+    # 普通消费者的配置
+    consumer:
+      # 【建议】为这个服务的监听器明确指定一个消费组ID
+      group-id: bling-processing-group
+    # Kafka Streams 的专属配置
+    streams:
+      # 【关键补充】必须为 Kafka Streams 应用提供一个唯一的 application.id
+      application-id: hot-article-streams-app
+      properties:
+        # 推荐配置：确保数据被完全处理
+        processing.guarantee: exactly_once_v2
   # Jackson序列化配置
   jackson:
     enabled: true
   # Security配置
   security:
-    enabled: true
+    enabled: false
   # Redis配置（如果需要使用Redis）
   data:
     redis:
@@ -38,9 +48,9 @@ common:
   config:
     filter:
       # 启用用户上下文过滤器
-      enabled: true
+      enabled: false
       # 开启debug日志，方便调试
-      debug: true
+      debug: false
 
 # ===============================
 # MyBatis-Plus配置
@@ -68,7 +78,7 @@ minio:
 yuque:
   jwt:
     # 登录需要使用
-    enabled: true
+    enabled: false
 
 pickyboy:
   auth:
@@ -82,6 +92,7 @@ logging:
   level:
     com.pickyboy.blingBackend: DEBUG
     com.pickyboy.blingBackend.common.filter.UserContextFilter: DEBUG
+    org.apache.kafka: INFO # Kafka日志较多，可以设为INFO
 
 
 

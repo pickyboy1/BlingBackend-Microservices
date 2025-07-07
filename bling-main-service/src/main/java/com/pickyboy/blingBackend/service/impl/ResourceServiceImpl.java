@@ -8,6 +8,9 @@ import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
+import com.pickyboy.blingBackend.common.constants.KafkaTopicConstants;
+import com.pickyboy.blingBackend.dto.kafka.ArticleScoreEvent;
+import com.pickyboy.blingBackend.service.*;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -42,11 +45,6 @@ import com.pickyboy.blingBackend.mapper.CommentsMapper;
 import com.pickyboy.blingBackend.mapper.ResourcesMapper;
 import com.pickyboy.blingBackend.mapper.UsersMapper;
 import com.pickyboy.blingBackend.mapper.ViewHistoriesMapper;
-import com.pickyboy.blingBackend.service.ICommentsService;
-import com.pickyboy.blingBackend.service.IKnowledgeBaseValidationService;
-import com.pickyboy.blingBackend.service.ILikesService;
-import com.pickyboy.blingBackend.service.IResourceService;
-import com.pickyboy.blingBackend.service.IResourceVersionsService;
 
 import lombok.Data;
 import lombok.RequiredArgsConstructor;
@@ -71,6 +69,7 @@ public class ResourceServiceImpl extends ServiceImpl<ResourcesMapper, Resources>
     private final CommentsMapper commentsMapper;
     private final UsersMapper usersMapper;
     private final RedisUtil redisUtil;
+    private final KafkaProducerService  kafkaProducerService;
     /* 在知识库中新建资源
      * 只新建资源记录,无实际内容
      */
@@ -124,14 +123,19 @@ public class ResourceServiceImpl extends ServiceImpl<ResourcesMapper, Resources>
         // 异步记录浏览历史
         recordViewHistoryAsync(userId, resId);
 
-        // 【修复并发问题+性能优化】原子操作更新访问量
+        //  redis避免刷访问量
 
         if(!redisUtil.hasKey(RedisKeyConstants.getResourceViewKey(resId, userId))){
             redisUtil.set(RedisKeyConstants.getResourceViewKey(resId, userId), true,30, TimeUnit.MINUTES);
             baseMapper.incrementViewCount(resId);
             log.info("用户访问了资源,更新了访问量: resId={},userId={}", resId,userId);
         }
-        // TODO: 引入kafka,批处理访问量更新,计算热力值
+        // TODO: 引入kafka,批处理访问量更新
+
+        // 触发计分事件
+        var event = new ArticleScoreEvent(resId, userId, ArticleScoreEvent.EventType.VIEW,
+                ArticleScoreEvent.EventType.VIEW.getScoreChange(), LocalDateTime.now());
+        kafkaProducerService.sendMessage(KafkaTopicConstants.TOPIC_ARTICLE_SCORE_CHANGE,resId.toString(),event);
 
         return resource;
     }
@@ -717,10 +721,13 @@ public class ResourceServiceImpl extends ServiceImpl<ResourcesMapper, Resources>
         newLike.setResourceId(articleId);
         likesService.save(newLike);
 
-        // 【修复并发问题】原子操作增加资源点赞数
+        // todo: 由kafka聚合更新资源点赞数
         baseMapper.incrementLikeCount(articleId);
 
-        // todo: 触发计分,用于推荐系统
+        // 触发计分,用于推荐系统
+        var event = new ArticleScoreEvent(articleId,userId, ArticleScoreEvent.EventType.LIKE,
+                ArticleScoreEvent.EventType.LIKE.getScoreChange(),LocalDateTime.now());
+        kafkaProducerService.sendMessage(KafkaTopicConstants.TOPIC_ARTICLE_SCORE_CHANGE,articleId.toString(),event);
     }
 
     @Override
@@ -751,9 +758,13 @@ public class ResourceServiceImpl extends ServiceImpl<ResourcesMapper, Resources>
         likesService.removeById(like.getId());
 
         // 【修复并发问题】原子操作减少资源点赞数
+        // todo: 使用kafka聚合更新点赞数
         baseMapper.decrementLikeCount(articleId);
 
-        // todo: 触发计分,用于推荐系统
+        // 触发计分,用于推荐系统
+        var event = new ArticleScoreEvent(articleId,userId, ArticleScoreEvent.EventType.UNLIKE,
+                ArticleScoreEvent.EventType.UNLIKE.getScoreChange(),LocalDateTime.now());
+        kafkaProducerService.sendMessage(KafkaTopicConstants.TOPIC_ARTICLE_SCORE_CHANGE,articleId.toString(),event);
     }
 
     @Override
@@ -808,6 +819,7 @@ public class ResourceServiceImpl extends ServiceImpl<ResourcesMapper, Resources>
     }
 
     @Override
+    @Transactional
     public RootCommentVO createComment(Long articleId, CommentCreateRequest commentRequest) {
         log.info("发表评论: articleId={}, request={}", articleId, commentRequest);
         Long userId = CurrentHolder.getCurrentUserId();
@@ -838,18 +850,26 @@ public class ResourceServiceImpl extends ServiceImpl<ResourcesMapper, Resources>
             }
             comment.setRootId(preComment.getRootId() == null ? preComment.getId() : preComment.getRootId());
 
-                        // 【修复并发问题】原子操作增加父评论回复数
-            commentsMapper.incrementReplyCount(preComment.getId());
 
-            // 如果有根评论且不是同一个评论，也要增加根评论的回复数
+            // 只增加根评论的回复
+            // todo: 考虑使用kafka聚合更新
             if(preComment.getRootId() != null) {
                 commentsMapper.incrementReplyCount(preComment.getRootId());
             }
+            else {
+                commentsMapper.incrementReplyCount(preComment.getId());
+            }
         }
         commentsService.save(comment);
-
+        // 发送kafka消息
+        var event = new ArticleScoreEvent(articleId, userId,
+                ArticleScoreEvent.EventType.COMMENT, ArticleScoreEvent.EventType.COMMENT.getScoreChange(), LocalDateTime.now());
+        kafkaProducerService.sendMessage(KafkaTopicConstants.TOPIC_ARTICLE_SCORE_CHANGE, articleId.toString(), event);
         // 【修复并发问题】原子操作增加资源评论数
+        // todo: 考虑使用kafka聚合更新
         baseMapper.incrementCommentCount(articleId);
+
+        // 构建响应
         RootCommentVO rootCommentVO = new RootCommentVO();
         rootCommentVO.setId(comment.getId());
         rootCommentVO.setContent(comment.getContent());
@@ -866,6 +886,7 @@ public class ResourceServiceImpl extends ServiceImpl<ResourcesMapper, Resources>
 
     }
 
+    @Transactional
     @Override
     public void deleteComment(Long commentId) {
         log.info("删除评论: commentId={}", commentId);
@@ -891,6 +912,7 @@ public class ResourceServiceImpl extends ServiceImpl<ResourcesMapper, Resources>
             throw new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "评论对应的资源不存在、其知识库已被删除或无访问权限");
         }
 
+        // todo: 使用kafka聚合更新计数
         // 【修复并发问题】原子操作减少资源评论计数
         baseMapper.decrementCommentCount(comment.getResourceId());
 
@@ -901,7 +923,10 @@ public class ResourceServiceImpl extends ServiceImpl<ResourcesMapper, Resources>
         if (comment.getRootId() != null && !comment.getRootId().equals(comment.getId())) {
             commentsMapper.decrementReplyCount(comment.getRootId());
         }
+        // 发送积分变化事件
         commentsService.removeById(commentId);
+        var event = new ArticleScoreEvent(comment.getResourceId(), userId, ArticleScoreEvent.EventType.DELETE_COMMENT,
+                ArticleScoreEvent.EventType.DELETE_COMMENT.getScoreChange(), LocalDateTime.now());
     }
 
     @Override

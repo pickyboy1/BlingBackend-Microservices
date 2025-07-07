@@ -14,6 +14,7 @@
         <module>bling-main-service</module>
         <module>bling-gateway</module>
         <module>bling-client-demo</module>
+        <module>bling-processing-service</module>
     </modules>
 
     <properties>

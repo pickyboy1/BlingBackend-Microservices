@@ -1,11 +1,14 @@
 package com.pickyboy.blingBackend.common.utils;
 
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.redis.core.DefaultTypedTuple;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.core.ZSetOperations;
 
+import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
 
 /**
  * Redis工具类
@@ -67,7 +70,18 @@ public class RedisUtil {
         return Boolean.TRUE.equals(redisTemplate.hasKey(key));
     }
 
+    /**
+     * 【新增】重命名 key
+     * @param oldKey 旧的 key
+     * @param newKey 新的 key
+     */
+    public void rename(final String oldKey, final String newKey) {
+        redisTemplate.rename(oldKey, newKey);
+    }
+
     // ============================ ZSet (有序集合) 操作 ============================
+
+
 
     /**
      * 向有序集合添加一个成员，或者更新已存在成员的分数
@@ -78,6 +92,22 @@ public class RedisUtil {
      */
     public Boolean zAdd(String key, Object member, double score) {
         return redisTemplate.opsForZSet().add(key, member, score);
+    }
+
+    /**
+     * 【新增】批量添加成员到有序集合
+     * @param key ZSet的键
+     * @param membersWithScores 包含成员和分数的Map
+     */
+    public void zAdd(String key, Map<String, Double> membersWithScores) {
+        if (membersWithScores == null || membersWithScores.isEmpty()) {
+            return;
+        }
+        // 【修正】将 DefaultTypedTuple 的泛型明确为 <Object>，以匹配 redisTemplate 的定义
+        Set<ZSetOperations.TypedTuple<Object>> tuples = membersWithScores.entrySet().stream()
+                .map(entry -> new DefaultTypedTuple<Object>(entry.getKey(), entry.getValue()))
+                .collect(Collectors.toSet());
+        redisTemplate.opsForZSet().add(key, tuples);
     }
 
     /**
@@ -153,5 +183,15 @@ public class RedisUtil {
      */
     public Long zSize(String key) {
         return redisTemplate.opsForZSet().size(key);
+    }
+
+    /**
+     * 获取有序集合中指定成员的分数
+     * @param key ZSet的键
+     * @param member 成员
+     * @return 成员的分数，如果成员不存在则返回null
+     */
+    public Double zScore(String key, Object member) {
+        return redisTemplate.opsForZSet().score(key, member);
     }
 }

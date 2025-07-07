@@ -156,6 +156,20 @@
         WHERE id = #{resourceId}
     </update>
 
+    <!-- 原子增加资源收藏数 -->
+    <update id="incrementFavoriteCount">
+        UPDATE resources
+        SET favorite_count = favorite_count + 1
+        WHERE id = #{resourceId}
+    </update>
+
+    <!-- 原子减少资源收藏数 -->
+    <update id="decrementFavoriteCount">
+        UPDATE resources
+        SET favorite_count = GREATEST(0, favorite_count - 1)
+        WHERE id = #{resourceId}
+    </update>
+
     <!-- 获取用户编辑历史 -->
     <select id="getUserEditHistory" resultType="com.pickyboy.blingBackend.vo.user.ActivityRecord">
         SELECT

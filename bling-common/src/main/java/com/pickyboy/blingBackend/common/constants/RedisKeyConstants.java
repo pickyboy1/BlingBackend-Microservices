@@ -8,6 +8,11 @@ public class RedisKeyConstants {
     /** 知识库浏览防刷键: view:kb:{知识库ID}:{用户ID} */
     public static final String KB_VIEW_KEY_TEMPLATE = "view:kb:%s:%s";
 
+    public static final String HOT_ARTICLE_ZSET_KEY = "hot_articles_zset";
+
+    /** 热门文章列表键 */
+    public static final String HOT_ARTICLE_LIST_KEY = "hot_articles_list";
+
     public static String getResourceViewKey(Long resourceId, Long userId) {
         return String.format(RESOURCE_VIEW_KEY_TEMPLATE, resourceId, userId);
     }
