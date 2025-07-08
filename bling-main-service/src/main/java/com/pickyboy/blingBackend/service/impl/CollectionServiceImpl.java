@@ -187,8 +187,7 @@ public class CollectionServiceImpl implements ICollectionService {
         resourcesMapper.incrementFavoriteCount(request.getResourceId());
 
         // 触发计分事件
-        var event = new ArticleScoreEvent(request.getResourceId(),currentUserId, ArticleScoreEvent.EventType.FAVORITE,
-                ArticleScoreEvent.EventType.FAVORITE.getScoreChange(), LocalDateTime.now());
+        var event = new ArticleScoreEvent(request.getResourceId(), currentUserId, ArticleScoreEvent.EventType.FAVORITE, LocalDateTime.now());
         kafkaProducerService.sendMessage(KafkaTopicConstants.TOPIC_ARTICLE_SCORE_CHANGE,request.getResourceId().toString(),event);
         log.info("添加文章到收藏夹成功: groupId={}, resourceId={}", groupId, request.getResourceId());
     }
@@ -229,8 +228,7 @@ public class CollectionServiceImpl implements ICollectionService {
         // 【新增】原子操作减少资源收藏数
         resourcesMapper.decrementFavoriteCount(articleId);
         // 触发计分,用于推荐系统
-        var event = new ArticleScoreEvent(articleId,currentUserId, ArticleScoreEvent.EventType.UNFAVORITE,
-                ArticleScoreEvent.EventType.UNFAVORITE.getScoreChange(),LocalDateTime.now());
+        var event = new ArticleScoreEvent(articleId, currentUserId, ArticleScoreEvent.EventType.UNFAVORITE, LocalDateTime.now());
         kafkaProducerService.sendMessage(KafkaTopicConstants.TOPIC_ARTICLE_SCORE_CHANGE,articleId.toString(),event);
 
         log.info("从收藏夹移除文章成功: groupId={}, articleId={}", groupId, articleId);

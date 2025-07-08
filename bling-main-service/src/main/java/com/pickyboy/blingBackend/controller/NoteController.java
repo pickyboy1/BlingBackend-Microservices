@@ -83,7 +83,7 @@ public class NoteController {
     @DeleteMapping("/notes")
     public Result<Void> deleteNotes(@Valid @RequestBody DeleteNotesRequest deleteNotesRequest) {
         noteService.deleteNotes(deleteNotesRequest);
-        return Result.success(null);
+        return Result.success();
     }
 
     /**
@@ -112,7 +112,7 @@ public class NoteController {
             @PathVariable Long noteId,
             @Valid @RequestBody UpdateNoteRequest updateNoteRequest) {
         noteService.updateNote(noteId, updateNoteRequest);
-        return Result.success(null);
+        return Result.success();
     }
 
     /**
@@ -141,7 +141,7 @@ public class NoteController {
             @PathVariable Long noteId,
             @Valid @RequestBody SetNoteTagsRequest setNoteTagsRequest) {
         noteService.setNoteTags(noteId, setNoteTagsRequest);
-        return Result.success(null);
+        return Result.success();
     }
 
 }

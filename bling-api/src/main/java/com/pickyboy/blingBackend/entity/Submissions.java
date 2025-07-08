@@ -43,7 +43,7 @@ public class Submissions implements Serializable {
     private Long userId;
 
     /**
-     * 审核状态
+     * 审核状态 0未审核 1审核通过 2审核未通过 3已取消
      */
     private Integer status;
 

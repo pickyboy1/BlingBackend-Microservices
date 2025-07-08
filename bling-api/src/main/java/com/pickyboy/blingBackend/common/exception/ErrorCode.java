@@ -62,7 +62,11 @@ public enum ErrorCode {
     COMMENT_NOT_FOUND(7001, "评论不存在"),
     COMMENT_DELETE_FAILED(7002, "评论删除失败"),
     COMMENT_ALREADY_LIKED(7006, "评论已点赞"),
-    COMMENT_ALREADY_UNLIKED(7007, "评论未点赞");
+    COMMENT_ALREADY_UNLIKED(7007, "评论未点赞"),
+
+    // 投稿相关错误码 (8000-8099)
+    SUBMISSION_NOT_FOUND(8001, "投稿记录不存在"),
+    SUBMISSION_ALREADY_PROCESSED(8002, "该投稿已处理，无法操作");
 
     private final int code;
     private final String message;

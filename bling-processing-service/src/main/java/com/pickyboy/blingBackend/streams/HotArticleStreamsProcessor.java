@@ -35,18 +35,22 @@ public class HotArticleStreamsProcessor {
                 value.getScoreChange() != null ? value.getScoreChange() : value.getEventType().getScoreChange()))
             // 按文章ID (即消息的Key) 进行分组
             .groupByKey(Grouped.with(Serdes.String(), eventSerde))
-                // 【修正】定义一个24小时的滚动窗口，并使用正确的API
-                .windowedBy(TimeWindows.ofSizeWithNoGrace(Duration.ofMinutes(30)))
+                // 【修正】定义一个1分钟的滚动窗口，方便测试
+                .windowedBy(TimeWindows.ofSizeWithNoGrace(Duration.ofMillis(30000)))
             // 聚合计算窗口内的总分
             .aggregate(
                 () -> 0, // 初始化聚合器值为 0
                 (key, value, aggregate) -> {
                     int scoreToAdd = value.getScoreChange() != null ? value.getScoreChange() : value.getEventType().getScoreChange();
                     log.debug("Adding score {} for article {} (current aggregate: {})", scoreToAdd, key, aggregate);
-                    return aggregate + scoreToAdd;
+                    return aggregate - scoreToAdd;
                 }, // 核心逻辑：累加分数，优先使用scoreChange字段，fallback到枚举值
                 Materialized.with(Serdes.String(), Serdes.Integer()) // 物化状态，以便容错
             )
+                // ================= 【关键修正】 =================
+                // 添加 suppress() 操作符，抑制中间结果的发送
+                // 直到窗口关闭时（即当前时间超过了窗口结束时间），才发送最终的聚合结果
+             .suppress(Suppressed.untilWindowCloses(Suppressed.BufferConfig.unbounded()))
             // 将窗口化的流 (KTable) 转回普通的 KStream
             .toStream()
             .map((windowedKey, value) -> {

@@ -19,8 +19,13 @@ public class ArticleScoreUpdateListener {
     private final RedisUtil redisUtil;
     private final ResourceStateMapper resourceMapper; // 【修正】注入新的 Mapper
 
-    @KafkaListener(topics = KafkaTopicConstants.TOPIC_UPDATE_ARTICLE_SCORE,
-            groupId = "bling-processing-group")
+    @KafkaListener(
+        topics = KafkaTopicConstants.TOPIC_UPDATE_ARTICLE_SCORE,
+        groupId = "bling-processing-group",
+        properties = {
+            "value.deserializer=org.apache.kafka.common.serialization.IntegerDeserializer"
+        }
+    )
     public void handleScoreUpdate(ConsumerRecord<String, Integer> record) {
         String articleIdStr = record.key();
         Integer scoreIncrement = record.value();

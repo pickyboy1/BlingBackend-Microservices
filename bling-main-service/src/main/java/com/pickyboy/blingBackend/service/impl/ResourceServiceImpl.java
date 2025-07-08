@@ -32,6 +32,8 @@ import com.pickyboy.blingBackend.dto.resource.MoveResourceRequest;
 import com.pickyboy.blingBackend.dto.resource.RestoreResourceRequest;
 import com.pickyboy.blingBackend.dto.resource.UpdateResourceContentRequest;
 import com.pickyboy.blingBackend.dto.resource.UpdateResourceInfoRequest;
+import com.pickyboy.blingBackend.dto.resource.UpdateResourceStatusRequest;
+import com.pickyboy.blingBackend.dto.resource.UpdateResourceVisibilityRequest;
 import com.pickyboy.blingBackend.entity.Comments;
 import com.pickyboy.blingBackend.entity.Likes;
 import com.pickyboy.blingBackend.entity.Resources;
@@ -84,6 +86,17 @@ public class ResourceServiceImpl extends ServiceImpl<ResourcesMapper, Resources>
         // 检查知识库所有权：只能向自己的知识库添加资源
         knowledgeBaseValidationService.validateKnowledgeBaseOwnership(kbId, userId);
 
+        // 【严格校验】preId不为null时，必须存在且属于当前知识库
+        if (createRequest.getPreId() != null) {
+            Resources parent = baseMapper.selectResourceInActiveKb(createRequest.getPreId());
+            if (parent == null) {
+                throw new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "目标目录或文档不存在");
+            }
+            if (!parent.getKnowledgeBaseId().equals(kbId)) {
+                throw new BusinessException(ErrorCode.PARAMS_ERROR, "父节点不属于当前知识库");
+            }
+        }
+
         Resources resource = new Resources();
         resource.setKnowledgeBaseId(kbId);
         resource.setUserId(userId);
@@ -129,13 +142,12 @@ public class ResourceServiceImpl extends ServiceImpl<ResourcesMapper, Resources>
             redisUtil.set(RedisKeyConstants.getResourceViewKey(resId, userId), true,30, TimeUnit.MINUTES);
             baseMapper.incrementViewCount(resId);
             log.info("用户访问了资源,更新了访问量: resId={},userId={}", resId,userId);
+
+            // 【修复】只在有效访问（没有被防刷机制拦截）时才发送计分事件
+            var event = new ArticleScoreEvent(resId, userId, ArticleScoreEvent.EventType.VIEW, LocalDateTime.now());
+            kafkaProducerService.sendMessage(KafkaTopicConstants.TOPIC_ARTICLE_SCORE_CHANGE,resId.toString(),event);
         }
         // TODO: 引入kafka,批处理访问量更新
-
-        // 触发计分事件
-        var event = new ArticleScoreEvent(resId, userId, ArticleScoreEvent.EventType.VIEW,
-                ArticleScoreEvent.EventType.VIEW.getScoreChange(), LocalDateTime.now());
-        kafkaProducerService.sendMessage(KafkaTopicConstants.TOPIC_ARTICLE_SCORE_CHANGE,resId.toString(),event);
 
         return resource;
     }
@@ -282,9 +294,8 @@ public class ResourceServiceImpl extends ServiceImpl<ResourcesMapper, Resources>
     }
 
     @Override
-    public void updateResourceVisibility(Long resId, Object visibilityRequest) {
-        VisibilityRequest vRequest = (VisibilityRequest) visibilityRequest;
-        log.info("更新资源可见性: resId={}, request={}", resId, vRequest);
+    public void updateResourceVisibility(Long resId, UpdateResourceVisibilityRequest visibilityRequest) {
+        log.info("更新资源可见性: resId={}, request={}", resId, visibilityRequest);
         Long userId = CurrentHolder.getCurrentUserId();
         if (userId == null) {
             throw new BusinessException(ErrorCode.NOT_LOGIN_ERROR);
@@ -306,7 +317,7 @@ public class ResourceServiceImpl extends ServiceImpl<ResourcesMapper, Resources>
             throw new BusinessException(ErrorCode.RESOURCE_ACCESS_DENIED);
         }
 
-        resource.setVisibility(vRequest.getVisibility());
+        resource.setVisibility(visibilityRequest.getVisibility());
         updateById(resource);
     }
 
@@ -314,9 +325,8 @@ public class ResourceServiceImpl extends ServiceImpl<ResourcesMapper, Resources>
      * 更新资源状态(上架/下架) 0:下架 1:上架 2: 强制下架(管理员)
      */
     @Override
-    public void updateResourceStatus(Long resId, Object statusRequest) {
-        StatusRequest sRequest = (StatusRequest) statusRequest;
-        log.info("更新资源状态: resId={}, request={}", resId, sRequest);
+    public void updateResourceStatus(Long resId, UpdateResourceStatusRequest statusRequest) {
+        log.info("更新资源状态: resId={}, request={}", resId, statusRequest);
         Long userId = CurrentHolder.getCurrentUserId();
         if (userId == null) {
             throw new BusinessException(ErrorCode.NOT_LOGIN_ERROR);
@@ -339,7 +349,7 @@ public class ResourceServiceImpl extends ServiceImpl<ResourcesMapper, Resources>
         }
 
         // 不能修改资源状态为2(强制下架)
-        if (sRequest.getStatus() == 2) {
+        if (statusRequest.getStatus() == 2) {
             throw new BusinessException(ErrorCode.RESOURCE_ACCESS_DENIED, "不能修改资源状态为2(强制下架),请联系管理员");
         }
 
@@ -348,7 +358,7 @@ public class ResourceServiceImpl extends ServiceImpl<ResourcesMapper, Resources>
             throw new BusinessException(ErrorCode.RESOURCE_ACCESS_DENIED);
         }
 
-        resource.setStatus(sRequest.getStatus());
+        resource.setStatus(statusRequest.getStatus());
         updateById(resource);
     }
 
@@ -356,7 +366,6 @@ public class ResourceServiceImpl extends ServiceImpl<ResourcesMapper, Resources>
     @Transactional
     public void restoreResource(Long resId, RestoreResourceRequest request) {
         log.info("从回收站恢复资源: resId={}, request={}", resId, request);
-
         Long userId = CurrentHolder.getCurrentUserId();
         if (userId == null) {
             throw new BusinessException(ErrorCode.NOT_LOGIN_ERROR);
@@ -367,16 +376,29 @@ public class ResourceServiceImpl extends ServiceImpl<ResourcesMapper, Resources>
         if (resource == null) {
             throw new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "资源不存在、未被删除或其知识库已被删除");
         }
-
-        // 【智能恢复】确定恢复位置
-        Long targetPreId = determineRestorePosition(resource, request);
-
-        // 使用Mapper方法更新已删除资源的状态，绕过逻辑删除过滤
+        // 【严格校验】恢复时指定的目标父节点preId必须存在且属于同一知识库
+        Long targetPreId = null;
+        if (request != null && request.getTargetPreId() != null) {
+            if (request.getTargetPreId().equals(0L)) {
+                targetPreId = null;
+            } else {
+                Resources targetParent = baseMapper.selectResourceInActiveKb(request.getTargetPreId());
+                if (targetParent == null) {
+                    throw new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "目标目录或文档不存在");
+                }
+                if (!targetParent.getKnowledgeBaseId().equals(resource.getKnowledgeBaseId())) {
+                    throw new BusinessException(ErrorCode.PARAMS_ERROR, "目标父节点不属于当前知识库");
+                }
+                targetPreId = request.getTargetPreId();
+            }
+        } else {
+            // 恢复到原位置或根节点
+            targetPreId = determineRestorePosition(resource, request);
+        }
         int updated = baseMapper.updateDeletedResource(resId, false, targetPreId);
         if (updated == 0) {
             throw new BusinessException(ErrorCode.SYSTEM_ERROR, "资源恢复失败");
         }
-
         log.info("资源恢复成功: resId={}, targetPreId={}", resId, targetPreId);
     }
 
@@ -479,12 +501,11 @@ public class ResourceServiceImpl extends ServiceImpl<ResourcesMapper, Resources>
         // 验证目标知识库是否存在且有权限访问
         knowledgeBaseValidationService.validateKnowledgeBaseOwnership(moveRequest.getTargetKbId(), userId);
 
-        // 验证目标父节点是否存在（如果不为null）
+        // 【严格校验】目标父节点preId不为null时，必须存在且属于目标知识库
         if (moveRequest.getTargetPreId() != null) {
-            // 【重构】使用JOIN查询验证目标父节点及其知识库状态
             Resources targetParent = baseMapper.selectResourceInActiveKb(moveRequest.getTargetPreId());
             if (targetParent == null) {
-                throw new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "目标父节点不存在或其知识库已被删除");
+                throw new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "目标目录或文档不存在");
             }
             if (!targetParent.getKnowledgeBaseId().equals(moveRequest.getTargetKbId())) {
                 throw new BusinessException(ErrorCode.PARAMS_ERROR, "目标父节点不属于目标知识库");
@@ -561,8 +582,17 @@ public class ResourceServiceImpl extends ServiceImpl<ResourcesMapper, Resources>
         // 验证目标知识库是否存在且有权限访问
         knowledgeBaseValidationService.validateKnowledgeBaseOwnership(copyRequest.getTargetKbId(), userId);
 
-        // 目录不复制具体内容
-        // 2. 深拷贝文件内容
+        // 【严格校验】目标父节点preId不为null时，必须存在且属于目标知识库
+        if (copyRequest.getTargetPreId() != null) {
+            Resources targetParent = baseMapper.selectResourceInActiveKb(copyRequest.getTargetPreId());
+            if (targetParent == null) {
+                throw new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "目标目录或文档不存在");
+            }
+            if (!targetParent.getKnowledgeBaseId().equals(copyRequest.getTargetKbId())) {
+                throw new BusinessException(ErrorCode.PARAMS_ERROR, "目标父节点不属于目标知识库");
+            }
+        }
+
         String uploadType = "resource";
         String newContentUrl =null;
         if(!resource.getType().equals(ResourceTypeConstants.RESOURCE_TYPE_FOLDER)){
@@ -576,10 +606,8 @@ public class ResourceServiceImpl extends ServiceImpl<ResourcesMapper, Resources>
 
         // 3. 准备并保存新的资源实体 (这里不能直接修改原resource对象)
         Resources newResource = new Resources();
-        newResource.setTitle(resource.getTitle()); // ... 其他属性
-
-        // 设置新的、不同的属性
-        newResource.setId(null); // 清除ID，让数据库自动生成
+        newResource.setTitle(resource.getTitle());
+        newResource.setId(null);
         newResource.setKnowledgeBaseId(copyRequest.getTargetKbId());
         newResource.setPreId(copyRequest.getTargetPreId());
         newResource.setType(resource.getType());
@@ -613,7 +641,16 @@ public class ResourceServiceImpl extends ServiceImpl<ResourcesMapper, Resources>
     @Override
     @Transactional
     public void copyResourceTree(Long resId, CopyResourceRequest copyRequest) {
-        // 复制根资源
+        // 复制根资源前校验目标父节点
+        if (copyRequest.getTargetPreId() != null) {
+            Resources targetParent = baseMapper.selectResourceInActiveKb(copyRequest.getTargetPreId());
+            if (targetParent == null) {
+                throw new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "目标目录或文档不存在");
+            }
+            if (!targetParent.getKnowledgeBaseId().equals(copyRequest.getTargetKbId())) {
+                throw new BusinessException(ErrorCode.PARAMS_ERROR, "目标父节点不属于目标知识库");
+            }
+        }
         Resources copiedRoot = copyResource(resId, copyRequest);
 
         // 递归复制子资源
@@ -631,9 +668,8 @@ public class ResourceServiceImpl extends ServiceImpl<ResourcesMapper, Resources>
     private void recursiveCopyChildren(Long sourceParentId, Long newParentId, Long targetKbId) {
         // 【修正】使用统一递归查询获取所有子孙节点（无论删除状态）
         List<Resources> allDescendants = baseMapper.selectAllDescendants(sourceParentId);
-
         if (allDescendants.isEmpty()) {
-            return; // 如果没有子节点，直接返回
+            return;
         }
 
         // 存储原ID到新ID的映射关系，用于重建父子关系
@@ -725,8 +761,7 @@ public class ResourceServiceImpl extends ServiceImpl<ResourcesMapper, Resources>
         baseMapper.incrementLikeCount(articleId);
 
         // 触发计分,用于推荐系统
-        var event = new ArticleScoreEvent(articleId,userId, ArticleScoreEvent.EventType.LIKE,
-                ArticleScoreEvent.EventType.LIKE.getScoreChange(),LocalDateTime.now());
+        var event = new ArticleScoreEvent(articleId, userId, ArticleScoreEvent.EventType.LIKE, LocalDateTime.now());
         kafkaProducerService.sendMessage(KafkaTopicConstants.TOPIC_ARTICLE_SCORE_CHANGE,articleId.toString(),event);
     }
 
@@ -762,8 +797,7 @@ public class ResourceServiceImpl extends ServiceImpl<ResourcesMapper, Resources>
         baseMapper.decrementLikeCount(articleId);
 
         // 触发计分,用于推荐系统
-        var event = new ArticleScoreEvent(articleId,userId, ArticleScoreEvent.EventType.UNLIKE,
-                ArticleScoreEvent.EventType.UNLIKE.getScoreChange(),LocalDateTime.now());
+        var event = new ArticleScoreEvent(articleId, userId, ArticleScoreEvent.EventType.UNLIKE, LocalDateTime.now());
         kafkaProducerService.sendMessage(KafkaTopicConstants.TOPIC_ARTICLE_SCORE_CHANGE,articleId.toString(),event);
     }
 
@@ -862,8 +896,7 @@ public class ResourceServiceImpl extends ServiceImpl<ResourcesMapper, Resources>
         }
         commentsService.save(comment);
         // 发送kafka消息
-        var event = new ArticleScoreEvent(articleId, userId,
-                ArticleScoreEvent.EventType.COMMENT, ArticleScoreEvent.EventType.COMMENT.getScoreChange(), LocalDateTime.now());
+        var event = new ArticleScoreEvent(articleId, userId, ArticleScoreEvent.EventType.COMMENT, LocalDateTime.now());
         kafkaProducerService.sendMessage(KafkaTopicConstants.TOPIC_ARTICLE_SCORE_CHANGE, articleId.toString(), event);
         // 【修复并发问题】原子操作增加资源评论数
         // todo: 考虑使用kafka聚合更新
@@ -923,10 +956,12 @@ public class ResourceServiceImpl extends ServiceImpl<ResourcesMapper, Resources>
         if (comment.getRootId() != null && !comment.getRootId().equals(comment.getId())) {
             commentsMapper.decrementReplyCount(comment.getRootId());
         }
-        // 发送积分变化事件
+        // 删除评论
         commentsService.removeById(commentId);
-        var event = new ArticleScoreEvent(comment.getResourceId(), userId, ArticleScoreEvent.EventType.DELETE_COMMENT,
-                ArticleScoreEvent.EventType.DELETE_COMMENT.getScoreChange(), LocalDateTime.now());
+
+        // 发送积分变化事件
+        var event = new ArticleScoreEvent(comment.getResourceId(), userId, ArticleScoreEvent.EventType.DELETE_COMMENT, LocalDateTime.now());
+        kafkaProducerService.sendMessage(KafkaTopicConstants.TOPIC_ARTICLE_SCORE_CHANGE, comment.getResourceId().toString(), event);
     }
 
     @Override
@@ -1007,16 +1042,5 @@ public class ResourceServiceImpl extends ServiceImpl<ResourcesMapper, Resources>
 
         log.info("成功恢复资源到指定版本: resId={}, versionId={}, newContent={}", resId, versionId, targetContentUrl);
     }
-
-    @Data
-    public static class VisibilityRequest {
-        private Integer visibility;
-    }
-
-    @Data
-    public static class StatusRequest {
-        private Integer status;
-    }
-
 
 }

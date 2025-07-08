@@ -36,7 +36,7 @@
           AND pre_id IS NULL
           AND c.is_deleted = 0
           AND users.is_deleted = 0
-        ORDER BY created_at DESC
+        ORDER BY c.created_at DESC
         LIMIT #{limit} OFFSET #{offset}
     </select>
 

@@ -2,4 +2,47 @@
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="com.pickyboy.blingBackend.mapper.SubmissionsMapper">
 
+    <!-- 查询当前用户所有投稿（含资源、知识库信息） -->
+    <select id="findByUserId" resultType="com.pickyboy.blingBackend.vo.submission.SubmissionVO">
+        SELECT
+            s.id,
+            s.knowledge_base_id AS knowledgeBaseId,
+            s.resource_id AS resourceId,
+            s.user_id AS userId,
+            s.status,
+            s.recommend_reason AS recommendReason,
+            s.created_at AS createdAt,
+            s.updated_at AS updatedAt,
+            r.title AS resourceTitle,
+            kb.name AS knowledgeBaseName
+        FROM submissions s
+        LEFT JOIN resources r ON s.resource_id = r.id
+        LEFT JOIN knowledge_bases kb ON s.knowledge_base_id = kb.id
+        WHERE s.user_id = #{userId}
+          AND s.is_deleted = 0
+        ORDER BY s.created_at DESC
+    </select>
+
+    <!-- 查询单个投稿详情（含资源、知识库信息） -->
+    <select id="findVOByIdAndUserId" resultType="com.pickyboy.blingBackend.vo.submission.SubmissionVO">
+        SELECT
+            s.id,
+            s.knowledge_base_id AS knowledgeBaseId,
+            s.resource_id AS resourceId,
+            s.user_id AS userId,
+            s.status,
+            s.recommend_reason AS recommendReason,
+            s.created_at AS createdAt,
+            s.updated_at AS updatedAt,
+            r.title AS resourceTitle,
+            kb.name AS knowledgeBaseName
+        FROM submissions s
+        LEFT JOIN resources r ON s.resource_id = r.id
+        LEFT JOIN knowledge_bases kb ON s.knowledge_base_id = kb.id
+        WHERE s.id = #{id}
+          AND s.user_id = #{userId}
+          AND s.is_deleted = 0
+        LIMIT 1
+    </select>
+
 </mapper>

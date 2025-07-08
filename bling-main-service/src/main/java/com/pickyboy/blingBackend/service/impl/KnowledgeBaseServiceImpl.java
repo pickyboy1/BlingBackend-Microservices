@@ -320,11 +320,10 @@ public class KnowledgeBaseServiceImpl extends ServiceImpl<KnowledgeBasesMapper, 
         // 验证知识库是否存在且当前用户有权限删除
         validateKnowledgeBaseOwnership(kbId);
 
-        // 【重构】直接对知识库进行逻辑删除，不再触动其下的资源
-        // 采用"非破坏性删除"设计模式，确保数据恢复的完整性
+        // 【非破坏性删除】仅逻辑删除知识库本身，不级联删除其下属资源（文章/文档）
+        // 这样可以保证数据可恢复、可追溯，回收站功能可用
         boolean deleted = removeById(kbId);
         if (!deleted) {
-            // 在实践中，如果removeById（逻辑删除）返回false，通常意味着记录不存在或更新失败
             throw new BusinessException(ErrorCode.KNOWLEDGE_BASE_DELETE_FAILED);
         }
 

@@ -74,7 +74,7 @@ public class TagController {
     @DeleteMapping("/tags")
     public Result<Void> deleteTags(@Valid @RequestBody DeleteTagsRequest deleteRequest) {
         tagService.deleteTags(deleteRequest);
-        return Result.success(null);
+        return Result.success();
     }
 
     /**
@@ -89,6 +89,6 @@ public class TagController {
     public Result<Void> updateTag(@PathVariable Long tagId,
             @Valid @RequestBody UpdateTagRequest updateRequest) {
         tagService.updateTag(tagId,updateRequest);
-        return Result.success(null);
+        return Result.success();
     }
 }

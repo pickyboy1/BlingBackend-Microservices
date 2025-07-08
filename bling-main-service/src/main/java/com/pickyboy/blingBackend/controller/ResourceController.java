@@ -2,7 +2,6 @@ package com.pickyboy.blingBackend.controller;
 
 import java.util.List;
 
-import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
@@ -12,7 +11,6 @@ import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.pickyboy.blingBackend.common.response.PageResult;
@@ -24,6 +22,8 @@ import com.pickyboy.blingBackend.dto.resource.MoveResourceRequest;
 import com.pickyboy.blingBackend.dto.resource.RestoreResourceRequest;
 import com.pickyboy.blingBackend.dto.resource.UpdateResourceContentRequest;
 import com.pickyboy.blingBackend.dto.resource.UpdateResourceInfoRequest;
+import com.pickyboy.blingBackend.dto.resource.UpdateResourceStatusRequest;
+import com.pickyboy.blingBackend.dto.resource.UpdateResourceVisibilityRequest;
 import com.pickyboy.blingBackend.entity.ResourceVersions;
 import com.pickyboy.blingBackend.entity.Resources;
 import com.pickyboy.blingBackend.vo.comment.RootCommentVO;
@@ -109,7 +109,7 @@ public class ResourceController {
      */
     @PatchMapping("/resources/{resId}/visibility")
     public Result<Void> updateResourceVisibility(@PathVariable Long resId,
-                                                 @RequestBody Object visibilityRequest) {
+                                                 @Valid @RequestBody UpdateResourceVisibilityRequest visibilityRequest) {
         log.info("更新资源可见性: resId={}, request={}", resId, visibilityRequest);
         resourceService.updateResourceVisibility(resId, visibilityRequest);
         return Result.success();
@@ -120,7 +120,7 @@ public class ResourceController {
      */
     @PatchMapping("/resources/{resId}/status")
     public Result<Void> updateResourceStatus(@PathVariable Long resId,
-                                            @RequestBody Object statusRequest) {
+                                            @Valid @RequestBody UpdateResourceStatusRequest statusRequest) {
         log.info("更新资源状态: resId={}, request={}", resId, statusRequest);
         resourceService.updateResourceStatus(resId, statusRequest);
         return Result.success();
@@ -205,7 +205,6 @@ public class ResourceController {
      * 点赞文章
      */
     @PostMapping("/articles/{articleId}/like")
-    @ResponseStatus(HttpStatus.NO_CONTENT)
     public Result<Void> likeArticle(@PathVariable Long articleId) {
         log.info("点赞文章: articleId={}", articleId);
         resourceService.likeArticle(articleId);
@@ -216,7 +215,6 @@ public class ResourceController {
      * 取消点赞文章
      */
     @DeleteMapping("/articles/{articleId}/like")
-    @ResponseStatus(HttpStatus.NO_CONTENT)
     public Result<Void> unlikeArticle(@PathVariable Long articleId) {
         log.info("取消点赞文章: articleId={}", articleId);
         resourceService.unlikeArticle(articleId);
@@ -253,7 +251,6 @@ public class ResourceController {
      * 发表评论
      */
     @PostMapping("/articles/{articleId}/comments")
-    @ResponseStatus(HttpStatus.CREATED)
     public Result<RootCommentVO> createComment(@PathVariable Long articleId,
                                               @Valid @RequestBody CommentCreateRequest commentRequest) {
         log.info("发表评论: articleId={}, request={}", articleId, commentRequest);
@@ -265,7 +262,6 @@ public class ResourceController {
      * 删除评论
      */
     @DeleteMapping("/comments/{commentId}")
-    @ResponseStatus(HttpStatus.NO_CONTENT)
     public Result<Void> deleteComment(@PathVariable Long commentId) {
         log.info("删除评论: commentId={}", commentId);
         resourceService.deleteComment(commentId);
@@ -285,16 +281,6 @@ public class ResourceController {
         return Result.success(articles);
     }
 
-    /**
-     * 提交投稿（申请推荐）
-     */
-    @PostMapping("/submissions")
-    @ResponseStatus(HttpStatus.ACCEPTED)
-    public Result<Void> createSubmission(@RequestBody Object submissionRequest) {
-        log.info("提交投稿: request={}", submissionRequest);
-        resourceService.createSubmission(submissionRequest);
-        return Result.success();
-    }
 
     /**
      * 分页查询资源版本历史

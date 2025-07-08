@@ -9,6 +9,8 @@ import com.pickyboy.blingBackend.dto.resource.CreateResourceRequest;
 import com.pickyboy.blingBackend.dto.resource.MoveResourceRequest;
 import com.pickyboy.blingBackend.dto.resource.UpdateResourceContentRequest;
 import com.pickyboy.blingBackend.dto.resource.UpdateResourceInfoRequest;
+import com.pickyboy.blingBackend.dto.resource.UpdateResourceStatusRequest;
+import com.pickyboy.blingBackend.dto.resource.UpdateResourceVisibilityRequest;
 import com.pickyboy.blingBackend.entity.Resources;
 import com.pickyboy.blingBackend.vo.comment.RootCommentVO;
 import com.pickyboy.blingBackend.vo.comment.SubCommentVO;
@@ -68,7 +70,7 @@ public interface IResourceService extends IService<Resources> {
      * @param resId 资源ID
      * @param visibilityRequest 可见性更新请求
      */
-    void updateResourceVisibility(Long resId, Object visibilityRequest);
+    void updateResourceVisibility(Long resId, UpdateResourceVisibilityRequest visibilityRequest);
 
     /**
      * 更新资源上架/下架状态
@@ -76,7 +78,7 @@ public interface IResourceService extends IService<Resources> {
      * @param resId 资源ID
      * @param statusRequest 状态更新请求
      */
-    void updateResourceStatus(Long resId, Object statusRequest);
+    void updateResourceStatus(Long resId, UpdateResourceStatusRequest statusRequest);
 
     /**
      * 恢复资源
