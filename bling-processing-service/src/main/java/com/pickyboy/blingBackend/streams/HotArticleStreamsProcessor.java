@@ -43,7 +43,7 @@ public class HotArticleStreamsProcessor {
                 (key, value, aggregate) -> {
                     int scoreToAdd = value.getScoreChange() != null ? value.getScoreChange() : value.getEventType().getScoreChange();
                     log.debug("Adding score {} for article {} (current aggregate: {})", scoreToAdd, key, aggregate);
-                    return aggregate - scoreToAdd;
+                    return aggregate + scoreToAdd;
                 }, // 核心逻辑：累加分数，优先使用scoreChange字段，fallback到枚举值
                 Materialized.with(Serdes.String(), Serdes.Integer()) // 物化状态，以便容错
             )

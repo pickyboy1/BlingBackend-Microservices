@@ -108,5 +108,21 @@ public class Users implements Serializable {
     @TableLogic
     private Boolean isDeleted;
 
+    // 新增字段
+    /**
+     * 用户状态：0-正常, 1-无法登录, 2-无法评论, 3-无法私信
+     */
+    private Integer status;
+
+    /**
+     * 封禁原因
+     */
+    private String blockReason;
+
+    /**
+     * 封禁结束时间
+     */
+    private LocalDateTime blockEndtime;
+
 
 }

@@ -11,6 +11,7 @@ public enum ErrorCode {
     NOT_FOUND_ERROR(404, "请求数据不存在"),
     FORBIDDEN_ERROR(403, "禁止访问"),
     SYSTEM_ERROR(500, "系统内部异常"),
+    FORBIDDEN_OPERATION(40301, "无权限操作"), // 新增：用于用户状态异常时的操作拦截
 
     // 用户相关错误码 (1000-1999)
     USER_NOT_FOUND(1001, "用户不存在"),

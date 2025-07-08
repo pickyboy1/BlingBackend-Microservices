@@ -2,6 +2,9 @@ package com.pickyboy.blingBackend.controller;
 
 import java.util.List;
 
+import com.pickyboy.blingBackend.common.aop.CheckUserStatus;
+import com.pickyboy.blingBackend.common.constants.UserStatusConstants;
+import com.pickyboy.blingBackend.dto.resource.*;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
@@ -16,14 +19,6 @@ import org.springframework.web.bind.annotation.RestController;
 import com.pickyboy.blingBackend.common.response.PageResult;
 import com.pickyboy.blingBackend.common.response.Result;
 import com.pickyboy.blingBackend.dto.comment.CommentCreateRequest;
-import com.pickyboy.blingBackend.dto.resource.CopyResourceRequest;
-import com.pickyboy.blingBackend.dto.resource.CreateResourceRequest;
-import com.pickyboy.blingBackend.dto.resource.MoveResourceRequest;
-import com.pickyboy.blingBackend.dto.resource.RestoreResourceRequest;
-import com.pickyboy.blingBackend.dto.resource.UpdateResourceContentRequest;
-import com.pickyboy.blingBackend.dto.resource.UpdateResourceInfoRequest;
-import com.pickyboy.blingBackend.dto.resource.UpdateResourceStatusRequest;
-import com.pickyboy.blingBackend.dto.resource.UpdateResourceVisibilityRequest;
 import com.pickyboy.blingBackend.entity.ResourceVersions;
 import com.pickyboy.blingBackend.entity.Resources;
 import com.pickyboy.blingBackend.vo.comment.RootCommentVO;
@@ -222,6 +217,17 @@ public class ResourceController {
     }
 
     /**
+     * 获取当前用户对指定文章的点赞和收藏状态
+     * @param id 文章ID
+     * @return 包含 isLiked 和 isFavorited 的状态对象
+     */
+    @GetMapping("articles/{id}/interaction-status")
+    public Result<ResourceInteractionStatusVO> getResourceInteractionStatus(@PathVariable Long id) {
+        ResourceInteractionStatusVO status = resourceService.getResourceInteractionStatus(id);
+        return Result.success(status);
+    }
+
+    /**
      * 获取文章的根评论列表(不包含子评论)
      */
     @GetMapping("/articles/{articleId}/comments")
@@ -251,6 +257,7 @@ public class ResourceController {
      * 发表评论
      */
     @PostMapping("/articles/{articleId}/comments")
+    @CheckUserStatus(requiredStatus = UserStatusConstants.CANNOT_COMMENT)
     public Result<RootCommentVO> createComment(@PathVariable Long articleId,
                                               @Valid @RequestBody CommentCreateRequest commentRequest) {
         log.info("发表评论: articleId={}, request={}", articleId, commentRequest);
@@ -317,6 +324,9 @@ public class ResourceController {
         resourceService.restoreResourceToVersion(resId, versionId);
         return Result.success();
     }
+
+
+
 
     /**
      * 获取知识库下的资源目录树(知识库模块实现)

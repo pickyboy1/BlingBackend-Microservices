@@ -8,9 +8,16 @@ import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
+import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
+import com.pickyboy.blingBackend.common.aop.CheckUserStatus;
 import com.pickyboy.blingBackend.common.constants.KafkaTopicConstants;
+import com.pickyboy.blingBackend.common.constants.UserStatusConstants;
 import com.pickyboy.blingBackend.dto.kafka.ArticleScoreEvent;
+import com.pickyboy.blingBackend.dto.resource.*;
+import com.pickyboy.blingBackend.entity.*;
+import com.pickyboy.blingBackend.mapper.*;
 import com.pickyboy.blingBackend.service.*;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -26,27 +33,10 @@ import com.pickyboy.blingBackend.common.utils.CurrentHolder;
 import com.pickyboy.blingBackend.common.utils.MinioUtil;
 import com.pickyboy.blingBackend.common.utils.RedisUtil;
 import com.pickyboy.blingBackend.dto.comment.CommentCreateRequest;
-import com.pickyboy.blingBackend.dto.resource.CopyResourceRequest;
-import com.pickyboy.blingBackend.dto.resource.CreateResourceRequest;
-import com.pickyboy.blingBackend.dto.resource.MoveResourceRequest;
-import com.pickyboy.blingBackend.dto.resource.RestoreResourceRequest;
-import com.pickyboy.blingBackend.dto.resource.UpdateResourceContentRequest;
-import com.pickyboy.blingBackend.dto.resource.UpdateResourceInfoRequest;
-import com.pickyboy.blingBackend.dto.resource.UpdateResourceStatusRequest;
-import com.pickyboy.blingBackend.dto.resource.UpdateResourceVisibilityRequest;
-import com.pickyboy.blingBackend.entity.Comments;
-import com.pickyboy.blingBackend.entity.Likes;
-import com.pickyboy.blingBackend.entity.Resources;
-import com.pickyboy.blingBackend.entity.Users;
-import com.pickyboy.blingBackend.entity.ViewHistories;
 import com.pickyboy.blingBackend.vo.comment.RootCommentVO;
 import com.pickyboy.blingBackend.vo.comment.SubCommentVO;
 import com.pickyboy.blingBackend.vo.resource.PublicResourceVO;
 import com.pickyboy.blingBackend.vo.resource.ShareUrlVO;
-import com.pickyboy.blingBackend.mapper.CommentsMapper;
-import com.pickyboy.blingBackend.mapper.ResourcesMapper;
-import com.pickyboy.blingBackend.mapper.UsersMapper;
-import com.pickyboy.blingBackend.mapper.ViewHistoriesMapper;
 
 import lombok.Data;
 import lombok.RequiredArgsConstructor;
@@ -72,6 +62,11 @@ public class ResourceServiceImpl extends ServiceImpl<ResourcesMapper, Resources>
     private final UsersMapper usersMapper;
     private final RedisUtil redisUtil;
     private final KafkaProducerService  kafkaProducerService;
+    // 注入 LikesMapper 和 FavoritesMapper
+
+    private final LikesMapper likesMapper;
+
+    private final FavoritesMapper favoritesMapper;
     /* 在知识库中新建资源
      * 只新建资源记录,无实际内容
      */
@@ -800,6 +795,27 @@ public class ResourceServiceImpl extends ServiceImpl<ResourcesMapper, Resources>
         var event = new ArticleScoreEvent(articleId, userId, ArticleScoreEvent.EventType.UNLIKE, LocalDateTime.now());
         kafkaProducerService.sendMessage(KafkaTopicConstants.TOPIC_ARTICLE_SCORE_CHANGE,articleId.toString(),event);
     }
+    @Override
+    public ResourceInteractionStatusVO getResourceInteractionStatus(Long resourceId) {
+        Long userId = CurrentHolder.getCurrentUserId();
+
+        // 如果用户未登录，则默认未点赞也未收藏
+        if (userId == null) {
+            return new ResourceInteractionStatusVO(false, false);
+        }
+
+        // 检查点赞状态
+        QueryWrapper<Likes> likeWrapper = new QueryWrapper<>();
+        likeWrapper.eq("user_id", userId).eq("resource_id", resourceId);
+        boolean isLiked = likesMapper.selectCount(likeWrapper) > 0;
+
+        // 检查收藏状态
+        QueryWrapper<Favorites> favoriteWrapper = new QueryWrapper<>();
+        favoriteWrapper.eq("user_id", userId).eq("resource_id", resourceId);
+        boolean isFavorited = favoritesMapper.selectCount(favoriteWrapper) > 0;
+
+        return new ResourceInteractionStatusVO(isLiked, isFavorited);
+    }
 
     @Override
     public List<RootCommentVO> listArticleComments(Long articleId, Integer page, Integer limit) {
@@ -964,30 +980,7 @@ public class ResourceServiceImpl extends ServiceImpl<ResourcesMapper, Resources>
         kafkaProducerService.sendMessage(KafkaTopicConstants.TOPIC_ARTICLE_SCORE_CHANGE, comment.getResourceId().toString(), event);
     }
 
-    @Override
-    public void createSubmission(Object submissionRequest) {
-        log.info("提交投稿: request={}", submissionRequest);
-        throw new UnsupportedOperationException("此方法尚未实现");
-    }
 
-    @Override
-    public List<PublicResourceVO> listExploreArticles(String sortBy, Integer page, Integer limit) {
-        log.info("获取推荐文章列表: sortBy={}, page={}, limit={}", sortBy, page, limit);
-
-        // 【重构】未来实现时需要使用JOIN查询过滤已删除知识库的资源
-        // 示例SQL:
-        // SELECT r.* FROM resources r
-        // JOIN knowledge_bases kb ON r.knowledge_base_id = kb.id
-        // WHERE r.is_deleted = 0 AND kb.is_deleted = 0
-        //   AND r.visibility = 1 AND kb.visibility = 1
-        //   AND r.status = 1
-        // ORDER BY
-        //   CASE WHEN #{sortBy} = 'hot' THEN r.like_count * 0.6 + r.view_count * 0.3 + r.comment_count * 0.1 END DESC,
-        //   CASE WHEN #{sortBy} = 'new' THEN r.created_at END DESC
-        // LIMIT #{offset}, #{limit}
-
-        throw new UnsupportedOperationException("此方法尚未实现 - 实现时需要使用JOIN查询过滤已删除知识库，支持hot/new排序");
-    }
 
     @Override
     public List<Resources> listDeletedResourcesInActiveKbs(Long userId) {

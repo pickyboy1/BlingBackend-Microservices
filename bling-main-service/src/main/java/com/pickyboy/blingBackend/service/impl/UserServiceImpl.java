@@ -2,7 +2,9 @@ package com.pickyboy.blingBackend.service.impl;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Objects;
 
+import com.pickyboy.blingBackend.common.constants.UserStatusConstants;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -110,7 +112,21 @@ public class UserServiceImpl extends ServiceImpl<UsersMapper, Users> implements 
         if (user == null) {
             throw new BusinessException(ErrorCode.USER_NOT_FOUND, "用户不存在");
         }
-
+        if ( Objects.equals(user.getStatus(), UserStatusConstants.CANNOT_LOGIN)) {
+            if(user.getBlockEndtime()==null||LocalDateTime.now().isAfter(user.getBlockEndtime())){
+                user.setStatus(UserStatusConstants.NORMAL);
+                updateById(user);
+            }
+            else {
+                // 如果用户状态为“无法登录”，直接抛出异常，并给出明确提示
+                String message = "您的账号已被限制登录";
+                if (user.getBlockReason() != null && !user.getBlockReason().isEmpty()) {
+                    message += "，原因：" + user.getBlockReason();
+                }
+                // 可以使用 NO_AUTH_ERROR 或 FORBIDDEN_ERROR
+                throw new BusinessException(ErrorCode.NO_AUTH_ERROR, message);
+            }
+        }
         // 验证密码
         if (!PasswordUtil.matches(loginRequest.getCredential(), user.getPasswordHash())) {
             throw new BusinessException(ErrorCode.INVALID_PASSWORD, "密码错误");

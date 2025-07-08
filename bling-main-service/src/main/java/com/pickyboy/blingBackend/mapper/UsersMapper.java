@@ -45,4 +45,12 @@ public interface UsersMapper extends BaseMapper<Users> {
      */
     int decrementFollowedCount(@Param("userId") Long userId);
 
+    /**
+     * 根据用户ID查询用户的状态信息，用于权限校验。
+     * 这是一个轻量级查询，只获取必要的字段。
+     * @param userId 用户ID
+     * @return 用户实体，仅包含状态相关字段
+     */
+    Users findUserStatusById(@Param("userId") Long userId);
+
 }

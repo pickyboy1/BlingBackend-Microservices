@@ -32,4 +32,13 @@
         WHERE id = #{userId}
     </update>
 
+    <!-- 新增的用户状态查询 -->
+    <select id="findUserStatusById" resultType="com.pickyboy.blingBackend.entity.Users">
+        SELECT
+            id, status, block_reason, block_endtime
+        FROM
+            users
+        WHERE
+            id = #{userId} AND is_deleted = 0
+    </select>
 </mapper>

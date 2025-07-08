@@ -4,13 +4,7 @@ import java.util.List;
 
 import com.baomidou.mybatisplus.extension.service.IService;
 import com.pickyboy.blingBackend.dto.comment.CommentCreateRequest;
-import com.pickyboy.blingBackend.dto.resource.CopyResourceRequest;
-import com.pickyboy.blingBackend.dto.resource.CreateResourceRequest;
-import com.pickyboy.blingBackend.dto.resource.MoveResourceRequest;
-import com.pickyboy.blingBackend.dto.resource.UpdateResourceContentRequest;
-import com.pickyboy.blingBackend.dto.resource.UpdateResourceInfoRequest;
-import com.pickyboy.blingBackend.dto.resource.UpdateResourceStatusRequest;
-import com.pickyboy.blingBackend.dto.resource.UpdateResourceVisibilityRequest;
+import com.pickyboy.blingBackend.dto.resource.*;
 import com.pickyboy.blingBackend.entity.Resources;
 import com.pickyboy.blingBackend.vo.comment.RootCommentVO;
 import com.pickyboy.blingBackend.vo.comment.SubCommentVO;
@@ -151,6 +145,13 @@ public interface IResourceService extends IService<Resources> {
     void unlikeArticle(Long articleId);
 
     /**
+     * 获取当前用户对指定文章的点赞和收藏状态
+     * @param resourceId 文章ID
+     * @return 交互状态视图对象
+     */
+    ResourceInteractionStatusVO getResourceInteractionStatus(Long resourceId);
+
+    /**
      * 获取文章的根评论列表
      *
      * @param articleId 文章ID
@@ -186,22 +187,8 @@ public interface IResourceService extends IService<Resources> {
      */
     void deleteComment(Long commentId);
 
-    /**
-     * 提交投稿（申请推荐）
-     *
-     * @param submissionRequest 投稿请求
-     */
-    void createSubmission(Object submissionRequest);
 
-    /**
-     * 获取推荐文章列表
-     *
-     * @param sortBy 排序方式：hot(热门) 或 new(最新)
-     * @param page 页码
-     * @param limit 每页数量
-     * @return 推荐文章列表
-     */
-    List<PublicResourceVO> listExploreArticles(String sortBy, Integer page, Integer limit);
+
 
     /**
      * 查询在未删除知识库中、但自身已被删除的文档列表
