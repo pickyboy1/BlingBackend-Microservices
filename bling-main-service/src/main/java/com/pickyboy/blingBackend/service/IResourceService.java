@@ -218,4 +218,29 @@ public interface IResourceService extends IService<Resources> {
      */
     void restoreResourceToVersion(Long resId, Long versionId);
 
+    /**
+     * 按标题模糊搜索文章（分页，严格过滤公开、未删除、上架、已发表的文章）
+     * @param keyword 关键词
+     * @param page 页码
+     * @param limit 每页数量
+     * @return 分页结果
+     */
+    com.pickyboy.blingBackend.common.response.PageResult<com.pickyboy.blingBackend.vo.resource.PublicResourceVO> searchArticlesByTitle(String keyword, Integer page, Integer limit);
+
+    /**
+     * 分页获取最新投稿文章（严格过滤公开、未删除、上架、已发表的文章）
+     * @param page 页码
+     * @param limit 每页数量
+     * @return 分页结果
+     */
+    com.pickyboy.blingBackend.common.response.PageResult<com.pickyboy.blingBackend.vo.resource.PublicResourceVO> listLatestArticles(Integer page, Integer limit);
+
+    /**
+     * 分页获取历史最热文章（严格过滤公开、未删除、上架、已发表的文章）
+     * @param page 页码
+     * @param limit 每页数量
+     * @return 分页结果
+     */
+    com.pickyboy.blingBackend.common.response.PageResult<com.pickyboy.blingBackend.vo.resource.PublicResourceVO> listHistoryHotArticles(Integer page, Integer limit);
+
 }

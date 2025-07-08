@@ -268,18 +268,7 @@ public class ResourceController {
         return Result.success();
     }
 
-    /**
-     * 获取推荐文章列表
-     */
-    @GetMapping("/explore/articles")
-    public Result<List<PublicResourceVO>> listExploreArticles(
-            @RequestParam(defaultValue = "hot") String sortBy,
-            @RequestParam(defaultValue = "1") Integer page,
-            @RequestParam(defaultValue = "20") Integer limit) {
-        log.info("获取推荐文章列表: sortBy={}, page={}, limit={}", sortBy, page, limit);
-        List<PublicResourceVO> articles = resourceService.listExploreArticles(sortBy, page, limit);
-        return Result.success(articles);
-    }
+
 
 
     /**

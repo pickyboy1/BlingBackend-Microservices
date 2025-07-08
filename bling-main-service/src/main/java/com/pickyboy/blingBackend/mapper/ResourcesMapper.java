@@ -8,6 +8,7 @@ import org.apache.ibatis.annotations.Update;
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import com.pickyboy.blingBackend.entity.Resources;
 import com.pickyboy.blingBackend.vo.user.ActivityRecord;
+import com.pickyboy.blingBackend.vo.resource.PublicResourceVO;
 
 /**
  * <p>
@@ -159,4 +160,22 @@ public interface ResourcesMapper extends BaseMapper<Resources> {
      */
     @Update("UPDATE resources SET is_deleted = #{isDeleted}, pre_id = #{preId}, updated_at = NOW() WHERE id = #{resourceId} AND is_deleted = 1")
     int updateDeletedResource(@Param("resourceId") Long resourceId, @Param("isDeleted") Boolean isDeleted, @Param("preId") Long preId);
+
+    /**
+     * 按标题模糊搜索公开、未删除、上架、已发表的文章
+     */
+    List<PublicResourceVO> searchArticlesByTitle(@Param("keyword") String keyword, @Param("offset") int offset, @Param("limit") int limit);
+    long countArticlesByTitle(@Param("keyword") String keyword);
+
+    /**
+     * 分页获取最新投稿文章
+     */
+    List<PublicResourceVO> listLatestArticles(@Param("offset") int offset, @Param("limit") int limit);
+    long countAllLatestArticles();
+
+    /**
+     * 分页获取历史最热文章
+     */
+    List<PublicResourceVO> listHistoryHotArticles(@Param("offset") int offset, @Param("limit") int limit);
+    long countAllHistoryHotArticles();
 }

@@ -1043,4 +1043,30 @@ public class ResourceServiceImpl extends ServiceImpl<ResourcesMapper, Resources>
         log.info("成功恢复资源到指定版本: resId={}, versionId={}, newContent={}", resId, versionId, targetContentUrl);
     }
 
+    @Override
+    public com.pickyboy.blingBackend.common.response.PageResult<com.pickyboy.blingBackend.vo.resource.PublicResourceVO> searchArticlesByTitle(String keyword, Integer page, Integer limit) {
+        // 只查公开、未删除、上架、已发表的文章，且标题模糊匹配
+        // type=0为文章，目录为1
+        int offset = (page - 1) * limit;
+        List<PublicResourceVO> records = baseMapper.searchArticlesByTitle(keyword, offset, limit);
+        long total = baseMapper.countArticlesByTitle(keyword);
+        return new com.pickyboy.blingBackend.common.response.PageResult<>(records, total, page, limit);
+    }
+
+    @Override
+    public com.pickyboy.blingBackend.common.response.PageResult<com.pickyboy.blingBackend.vo.resource.PublicResourceVO> listLatestArticles(Integer page, Integer limit) {
+        int offset = (page - 1) * limit;
+        List<PublicResourceVO> records = baseMapper.listLatestArticles(offset, limit);
+        long total = baseMapper.countAllLatestArticles();
+        return new com.pickyboy.blingBackend.common.response.PageResult<>(records, total, page, limit);
+    }
+
+    @Override
+    public com.pickyboy.blingBackend.common.response.PageResult<com.pickyboy.blingBackend.vo.resource.PublicResourceVO> listHistoryHotArticles(Integer page, Integer limit) {
+        int offset = (page - 1) * limit;
+        List<PublicResourceVO> records = baseMapper.listHistoryHotArticles(offset, limit);
+        long total = baseMapper.countAllHistoryHotArticles();
+        return new com.pickyboy.blingBackend.common.response.PageResult<>(records, total, page, limit);
+    }
+
 }

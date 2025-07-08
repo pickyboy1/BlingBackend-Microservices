@@ -15,8 +15,12 @@ import java.util.List;
 @NoArgsConstructor
 public class PageResult<T> implements Serializable {
 
+    private List<T> records; //当前页数据集合
     private long total; //总记录数
 
-    private List<T> list; //当前页数据集合
+
+
+    private Integer page;
+    private Integer limit;
 
 }
