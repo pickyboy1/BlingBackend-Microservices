@@ -7,6 +7,7 @@ import org.apache.ibatis.annotations.Param;
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import com.pickyboy.blingBackend.entity.Favorites;
 import com.pickyboy.blingBackend.vo.user.ActivityRecord;
+import org.apache.ibatis.annotations.Select;
 
 /**
  * <p>
@@ -28,4 +29,6 @@ public interface FavoritesMapper extends BaseMapper<Favorites> {
      */
     List<ActivityRecord> getArticlesInGroup(@Param("groupId") Long groupId, @Param("offset") Integer offset, @Param("limit") Integer limit);
 
+    @Select("SELECT EXISTS (SELECT 1 FROM favorites f join favorite_groups fg on f.group_id = fg.id WHERE resource_id = #{resourceId} AND fg.user_id = #{userId})")
+    int isFavorited(Long userId, Long resourceId);
 }

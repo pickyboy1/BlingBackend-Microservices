@@ -111,6 +111,9 @@ public class CollectionServiceImpl implements ICollectionService {
         }
 
         // 删除分组下的所有收藏条目
+
+        // todo: 发送对应资源评分事件
+        // todo: 减少涉及文章收藏数
         favoritesMapper.delete(
                 new LambdaQueryWrapper<Favorites>()
                         .eq(Favorites::getGroupId, groupId)

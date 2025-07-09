@@ -661,7 +661,7 @@ public class ResourceServiceImpl extends ServiceImpl<ResourcesMapper, Resources>
      * @param targetKbId 目标知识库ID
      */
     private void recursiveCopyChildren(Long sourceParentId, Long newParentId, Long targetKbId) {
-        // 【修正】使用统一递归查询获取所有子孙节点（无论删除状态）
+        // 【修正】使用统一递归查询获取所有子孙节点（无论删除状态）,并且结果按照层级排序
         List<Resources> allDescendants = baseMapper.selectAllDescendants(sourceParentId);
         if (allDescendants.isEmpty()) {
             return;
@@ -810,9 +810,7 @@ public class ResourceServiceImpl extends ServiceImpl<ResourcesMapper, Resources>
         boolean isLiked = likesMapper.selectCount(likeWrapper) > 0;
 
         // 检查收藏状态
-        QueryWrapper<Favorites> favoriteWrapper = new QueryWrapper<>();
-        favoriteWrapper.eq("user_id", userId).eq("resource_id", resourceId);
-        boolean isFavorited = favoritesMapper.selectCount(favoriteWrapper) > 0;
+        boolean isFavorited = favoritesMapper.isFavorited(userId, resourceId) > 0;
 
         return new ResourceInteractionStatusVO(isLiked, isFavorited);
     }
@@ -856,6 +854,9 @@ public class ResourceServiceImpl extends ServiceImpl<ResourcesMapper, Resources>
         if (comment == null) {
             throw new BusinessException(ErrorCode.COMMENT_NOT_FOUND, "评论不存在");
         }
+        if(comment.getRootId()!=null){
+            throw new BusinessException(ErrorCode.COMMENT_NOT_FOUND, "无法获取非根评论回复");
+        }
 
         // 使用带权限验证的查询，确保同时检查资源和知识库的可见性
         Resources resource = baseMapper.selectResourceInActiveKbWithUser(comment.getResourceId(), userId);
@@ -870,6 +871,7 @@ public class ResourceServiceImpl extends ServiceImpl<ResourcesMapper, Resources>
 
     @Override
     @Transactional
+    @CheckUserStatus(requiredStatus = UserStatusConstants.CANNOT_COMMENT)
     public RootCommentVO createComment(Long articleId, CommentCreateRequest commentRequest) {
         log.info("发表评论: articleId={}, request={}", articleId, commentRequest);
         Long userId = CurrentHolder.getCurrentUserId();
@@ -914,6 +916,7 @@ public class ResourceServiceImpl extends ServiceImpl<ResourcesMapper, Resources>
         // 发送kafka消息
         var event = new ArticleScoreEvent(articleId, userId, ArticleScoreEvent.EventType.COMMENT, LocalDateTime.now());
         kafkaProducerService.sendMessage(KafkaTopicConstants.TOPIC_ARTICLE_SCORE_CHANGE, articleId.toString(), event);
+
         // 【修复并发问题】原子操作增加资源评论数
         // todo: 考虑使用kafka聚合更新
         baseMapper.incrementCommentCount(articleId);
@@ -960,18 +963,23 @@ public class ResourceServiceImpl extends ServiceImpl<ResourcesMapper, Resources>
         if (resource == null) {
             throw new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "评论对应的资源不存在、其知识库已被删除或无访问权限");
         }
+// 有根评论,减少根评论计数
+        if (comment.getRootId() != null && !comment.getRootId().equals(comment.getId())) {
+            commentsMapper.decrementReplyCount(comment.getRootId());
+        }
+
+        if(comment.getRootId()==null){
+            // 删除所有子评论
+           int deleteCount = commentsMapper.delete(new LambdaQueryWrapper<Comments>()
+                   .eq(Comments::getRootId, comment.getId()));
+           baseMapper.decrementCommentCountByCount(comment.getResourceId(), deleteCount);
+        }
 
         // todo: 使用kafka聚合更新计数
         // 【修复并发问题】原子操作减少资源评论计数
         baseMapper.decrementCommentCount(comment.getResourceId());
 
-        // 【修复并发问题】原子操作更新评论回复计数
-        if (comment.getPreId() != null) {
-            commentsMapper.decrementReplyCount(comment.getPreId());
-        }
-        if (comment.getRootId() != null && !comment.getRootId().equals(comment.getId())) {
-            commentsMapper.decrementReplyCount(comment.getRootId());
-        }
+
         // 删除评论
         commentsService.removeById(commentId);
 
@@ -1010,6 +1018,7 @@ public class ResourceServiceImpl extends ServiceImpl<ResourcesMapper, Resources>
             throw new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "资源不存在或其知识库已被删除");
         }
 
+        // 3. 验证资源所有权
         if (!resource.getUserId().equals(userId)) {
             throw new BusinessException(ErrorCode.RESOURCE_ACCESS_DENIED);
         }

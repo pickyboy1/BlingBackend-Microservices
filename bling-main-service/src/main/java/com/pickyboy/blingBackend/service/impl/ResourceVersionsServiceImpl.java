@@ -1,7 +1,13 @@
 package com.pickyboy.blingBackend.service.impl;
 
 import java.util.List;
+import java.util.Objects;
 
+import com.pickyboy.blingBackend.common.exception.BusinessException;
+import com.pickyboy.blingBackend.common.exception.ErrorCode;
+import com.pickyboy.blingBackend.common.utils.CurrentHolder;
+import com.pickyboy.blingBackend.entity.Resources;
+import com.pickyboy.blingBackend.mapper.ResourcesMapper;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -32,6 +38,8 @@ import lombok.extern.slf4j.Slf4j;
 public class ResourceVersionsServiceImpl extends ServiceImpl<ResourceVersionsMapper, ResourceVersions> implements IResourceVersionsService {
 
     private final MinioUtil minioUtil;
+    private final ResourcesMapper resourcesMapper;
+
 
     @Override
     @Transactional
@@ -47,7 +55,11 @@ public class ResourceVersionsServiceImpl extends ServiceImpl<ResourceVersionsMap
     @Override
     public PageResult<ResourceVersions> getResourceVersionsPage(Long resId, Integer page, Integer limit) {
         log.info("分页查询资源版本: resId={}, page={}, limit={}", resId, page, limit);
-
+        Long userId = CurrentHolder.getCurrentUserId();
+        Resources resource = resourcesMapper.selectResourceInActiveKbWithUser(resId, userId);
+        if(resource == null){
+            throw new BusinessException(ErrorCode.RESOURCE_ACCESS_DENIED);
+        }
         // 创建分页对象
         Page<ResourceVersions> pageObj = new Page<>(page, limit);
 
@@ -93,6 +105,11 @@ public class ResourceVersionsServiceImpl extends ServiceImpl<ResourceVersionsMap
         // 【关键修复】在删除数据库记录前，必须先删除MinIO中的物理文件
         ResourceVersions versionToDelete = getById(versionId);
         if (versionToDelete != null && versionToDelete.getObjectUrl() != null) {
+           Resources resource = resourcesMapper.selectOne(new LambdaQueryWrapper<Resources>()
+                    .eq(Resources::getId,versionToDelete.getResourceId()));
+            if(!Objects.equals(resource.getUserId(), CurrentHolder.getCurrentUserId())){
+                throw new BusinessException(ErrorCode.RESOURCE_ACCESS_DENIED);
+            }
             try {
                 minioUtil.deleteObjectByUrl(versionToDelete.getObjectUrl());
                 log.info("成功删除MinIO中的版本文件: url={}", versionToDelete.getObjectUrl());

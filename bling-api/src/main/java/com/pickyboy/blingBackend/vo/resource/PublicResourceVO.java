@@ -12,6 +12,8 @@ import java.time.LocalDateTime;
 @Data
 public class PublicResourceVO {
 
+    private Long id;
+
     /**
      * 文档标题
      */
@@ -25,15 +27,22 @@ public class PublicResourceVO {
     /**
      * 更新时间
      */
-    private LocalDateTime updatedAt;
+    private LocalDateTime publishedAt;
 
-    /**
-     * 作者信息
-     */
-    private AuthorInfo author;
+    private Integer viewCount;
 
-    @Data
-    public static class AuthorInfo {
+    private Integer likeCount;
+
+    private Integer commentCount;
+
+    private Integer favoriteCount;
+
+    private Long kbId;
+
+   private  Long userId;
+
+   private String coverUrl;
+
         /**
          * 作者昵称
          */
@@ -43,5 +52,5 @@ public class PublicResourceVO {
          * 作者头像URL
          */
         private String avatarUrl;
-    }
+
 }

@@ -126,6 +126,7 @@ public interface ResourcesMapper extends BaseMapper<Resources> {
      */
     int decrementCommentCount(@Param("resourceId") Long resourceId);
 
+    int decrementCommentCountByCount(@Param("resourceId") Long resourceId,@Param("count")int count);
     /**
      * 原子增加资源收藏数
      * @param resourceId 资源ID

@@ -156,6 +156,12 @@
         WHERE id = #{resourceId}
     </update>
 
+    <update id="decrementCommentCountByCount">
+        UPDATE resources
+        SET comment_count = GREATEST(0, comment_count - #{count})
+        WHERE id = #{resourceId}
+    </update>
+
     <!-- 原子增加资源收藏数 -->
     <update id="incrementFavoriteCount">
         UPDATE resources
@@ -169,6 +175,7 @@
         SET favorite_count = GREATEST(0, favorite_count - 1)
         WHERE id = #{resourceId}
     </update>
+
 
     <!-- 获取用户编辑历史 -->
     <select id="getUserEditHistory" resultType="com.pickyboy.blingBackend.vo.user.ActivityRecord">
@@ -199,16 +206,22 @@
 
     <!-- 按标题模糊搜索公开、未删除、上架、已发表的文章 -->
     <select id="searchArticlesByTitle" resultType="com.pickyboy.blingBackend.vo.resource.PublicResourceVO">
-        SELECT r.id, r.title, r.user_id, r.knowledge_base_id, r.published_at, r.view_count, r.like_count, r.comment_count, r.favorite_count
+
+        SELECT r.id, r.title,r.content, r.user_id, r.published_at, r.view_count,
+               r.like_count, r.comment_count, r.favorite_count,
+               kb.id AS kbId,kb.cover_url,
+               u.nickname,u.avatar_url
         FROM resources r
-        JOIN knowledge_bases kb ON r.knowledge_base_id = kb.id
+                 JOIN knowledge_bases kb ON r.knowledge_base_id = kb.id
+                 JOIN users u on r.user_id = u.id
         WHERE r.is_deleted = 0
           AND kb.is_deleted = 0
+          AND u.is_deleted = 0
           AND r.visibility = 1
           AND kb.visibility = 1
           AND r.status = 1
           AND r.published_at IS NOT NULL
-          AND r.type = 0
+          AND r.type = 'doc'
           AND r.title LIKE CONCAT('%', #{keyword}, '%')
         ORDER BY r.published_at DESC
         LIMIT #{offset}, #{limit}
@@ -216,71 +229,87 @@
     <select id="countArticlesByTitle" resultType="long">
         SELECT COUNT(*)
         FROM resources r
-        JOIN knowledge_bases kb ON r.knowledge_base_id = kb.id
+                 JOIN knowledge_bases kb ON r.knowledge_base_id = kb.id
+                 JOIN users u on r.user_id = u.id
         WHERE r.is_deleted = 0
           AND kb.is_deleted = 0
+          AND u.is_deleted = 0
           AND r.visibility = 1
           AND kb.visibility = 1
           AND r.status = 1
           AND r.published_at IS NOT NULL
-          AND r.type = 0
+          AND r.type = 'doc'
           AND r.title LIKE CONCAT('%', #{keyword}, '%')
     </select>
 
     <!-- 分页获取最新投稿文章 -->
     <select id="listLatestArticles" resultType="com.pickyboy.blingBackend.vo.resource.PublicResourceVO">
-        SELECT r.id, r.title, r.user_id, r.knowledge_base_id, r.published_at, r.view_count, r.like_count, r.comment_count, r.favorite_count
+        SELECT r.id, r.title,r.content, r.user_id, r.published_at, r.view_count,
+               r.like_count, r.comment_count, r.favorite_count,
+               kb.id AS kbId,kb.cover_url,
+               u.nickname,u.avatar_url
         FROM resources r
-        JOIN knowledge_bases kb ON r.knowledge_base_id = kb.id
+                 JOIN knowledge_bases kb ON r.knowledge_base_id = kb.id
+                 JOIN users u on r.user_id = u.id
         WHERE r.is_deleted = 0
           AND kb.is_deleted = 0
+          AND u.is_deleted = 0
           AND r.visibility = 1
           AND kb.visibility = 1
           AND r.status = 1
           AND r.published_at IS NOT NULL
-          AND r.type = 0
-        ORDER BY r.published_at DESC
+          AND r.type = 'doc'
+        ORDER BY published_at DESC
         LIMIT #{offset}, #{limit}
     </select>
     <select id="countAllLatestArticles" resultType="long">
         SELECT COUNT(*)
         FROM resources r
-        JOIN knowledge_bases kb ON r.knowledge_base_id = kb.id
+                 JOIN knowledge_bases kb ON r.knowledge_base_id = kb.id
+                 JOIN users u on r.user_id = u.id
         WHERE r.is_deleted = 0
           AND kb.is_deleted = 0
+          AND u.is_deleted = 0
           AND r.visibility = 1
           AND kb.visibility = 1
           AND r.status = 1
           AND r.published_at IS NOT NULL
-          AND r.type = 0
+          AND r.type = 'doc'
     </select>
 
     <!-- 分页获取历史最热文章（按热度综合分排序） -->
     <select id="listHistoryHotArticles" resultType="com.pickyboy.blingBackend.vo.resource.PublicResourceVO">
-        SELECT r.id, r.title, r.user_id, r.knowledge_base_id, r.published_at, r.view_count, r.like_count, r.comment_count, r.favorite_count
+        SELECT r.id, r.title,r.content, r.user_id, r.published_at, r.view_count,
+               r.like_count, r.comment_count, r.favorite_count,
+               kb.id AS kbId, kb.cover_url,
+                u.nickname,u.avatar_url
         FROM resources r
         JOIN knowledge_bases kb ON r.knowledge_base_id = kb.id
+        JOIN users u on r.user_id = u.id
         WHERE r.is_deleted = 0
           AND kb.is_deleted = 0
+          AND u.is_deleted = 0
           AND r.visibility = 1
           AND kb.visibility = 1
           AND r.status = 1
           AND r.published_at IS NOT NULL
-          AND r.type = 0
+          AND r.type = 'doc'
         ORDER BY (r.view_count + r.like_count * 3 + r.comment_count * 2) DESC, r.published_at DESC
         LIMIT #{offset}, #{limit}
     </select>
     <select id="countAllHistoryHotArticles" resultType="long">
         SELECT COUNT(*)
         FROM resources r
-        JOIN knowledge_bases kb ON r.knowledge_base_id = kb.id
+                 JOIN knowledge_bases kb ON r.knowledge_base_id = kb.id
+                 JOIN users u on r.user_id = u.id
         WHERE r.is_deleted = 0
           AND kb.is_deleted = 0
+          AND u.is_deleted = 0
           AND r.visibility = 1
           AND kb.visibility = 1
           AND r.status = 1
           AND r.published_at IS NOT NULL
-          AND r.type = 0
+          AND r.type = 'doc'
     </select>
 
 </mapper>

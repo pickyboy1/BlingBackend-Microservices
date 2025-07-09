@@ -77,20 +77,7 @@ public class KnowledgeBaseController {
         return Result.success(knowledgeBase);
     }
 
-    /**
-     * 获取指定知识库下文档树(要么是点进知识库,要么是点到知识库的文档)
-     * 会触发知识库访问量增加
-     * GET /knowledge-bases/{kbId}/resources/tree
-     *
-     * @param kbId 知识库ID
-     * @return 知识库下文档树
-     */
-    @GetMapping("/knowledge-bases/{kbId}/resources/tree")
-    public Result<List<ResourceTreeVo>> getKnowledgeBaseWithDocuments(@PathVariable Long kbId) {
-        log.info("获取知识库下文档树: kbId={}", kbId);
-        List<ResourceTreeVo> knowledgeBaseWithDocuments = knowledgeBaseService.getKnowledgeBaseWithDocuments(kbId);
-        return Result.success(knowledgeBaseWithDocuments);
-    }
+
 
     /**
      * 更新知识库信息
@@ -153,6 +140,19 @@ public class KnowledgeBaseController {
     }
 
     /**
+     * 获取回收站内容列表
+     * GET /trash
+     *
+     * @return 回收站内容
+     */
+    @GetMapping("/recycle-bin/items")
+    public Result<TrashVO> getTrashContent() {
+        log.info("获取回收站内容列表");
+        TrashVO trash = knowledgeBaseService.getTrashContent();
+        return Result.success(trash);
+    }
+
+    /**
      * 获取知识库下最近编辑的文档
      * GET /knowledge-bases/{kbId}/recent-resources
      *
@@ -167,16 +167,18 @@ public class KnowledgeBaseController {
     }
 
     /**
-     * 获取回收站内容列表
-     * GET /trash
+     * 获取指定知识库下文档树(要么是点进知识库,要么是点到知识库的文档)
+     * 会触发知识库访问量增加
+     * GET /knowledge-bases/{kbId}/resources/tree
      *
-     * @return 回收站内容
+     * @param kbId 知识库ID
+     * @return 知识库下文档树
      */
-    @GetMapping("/recycle-bin/items")
-    public Result<TrashVO> getTrashContent() {
-        log.info("获取回收站内容列表");
-        TrashVO trash = knowledgeBaseService.getTrashContent();
-        return Result.success(trash);
+    @GetMapping("/knowledge-bases/{kbId}/resources/tree")
+    public Result<List<ResourceTreeVo>> getKnowledgeBaseWithDocuments(@PathVariable Long kbId) {
+        log.info("获取知识库下文档树: kbId={}", kbId);
+        List<ResourceTreeVo> knowledgeBaseWithDocuments = knowledgeBaseService.getKnowledgeBaseWithDocuments(kbId);
+        return Result.success(knowledgeBaseWithDocuments);
     }
 
     /**

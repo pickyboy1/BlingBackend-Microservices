@@ -1,5 +1,6 @@
 package com.pickyboy.blingBackend.filter;
 
+import com.pickyboy.blingBackend.common.response.Result;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cloud.gateway.filter.GatewayFilterChain;
 import org.springframework.cloud.gateway.filter.GlobalFilter;
@@ -18,7 +19,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.pickyboy.blingBackend.common.config.AuthProperties;
 import com.pickyboy.blingBackend.common.context.UserContext;
 import com.pickyboy.blingBackend.common.exception.JwtException;
-import com.pickyboy.blingBackend.common.response.Result;
+
 import com.pickyboy.blingBackend.common.utils.JwtUtil;
 
 import lombok.extern.slf4j.Slf4j;

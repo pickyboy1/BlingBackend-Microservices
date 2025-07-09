@@ -148,6 +148,8 @@ public class KnowledgeBaseServiceImpl extends ServiceImpl<KnowledgeBasesMapper, 
         return true;
     }
 
+
+
     /*
         获取指定知识库的详细信息(用于知识库编辑页面展示和查看他人知识库详细信息)
         会触发知识库访问量增加
@@ -197,6 +199,61 @@ public class KnowledgeBaseServiceImpl extends ServiceImpl<KnowledgeBasesMapper, 
             knowledgeBase.setShareId(null);
         }
         return knowledgeBase;
+    }
+
+    @Override
+    @Transactional
+    public boolean updateKnowledgeBase(Long kbId, InsertKnowledgeBaseRequest updateRequest) {
+        log.info("更新知识库: kbId={}, request={}", kbId, updateRequest);
+
+        if (kbId == null) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "知识库ID不能为空");
+        }
+
+        // 验证知识库是否存在且当前用户有权限修改(包含验证知识库存在性)
+        validateKnowledgeBaseOwnership(kbId);
+
+        KnowledgeBases knowledgeBase = getById(kbId);
+
+        // 如果要修改名称，检查是否重复
+        if (updateRequest.getName() != null && !updateRequest.getName().equals(knowledgeBase.getName())) {
+            // MyBatis Plus会自动过滤逻辑删除的数据
+            boolean nameExists = exists(
+                    new LambdaQueryWrapper<KnowledgeBases>()
+                            .eq(KnowledgeBases::getUserId, knowledgeBase.getUserId())
+                            .eq(KnowledgeBases::getName, updateRequest.getName())
+                            .ne(KnowledgeBases::getId, kbId)
+            );
+
+            if (nameExists) {
+                throw new BusinessException(ErrorCode.KNOWLEDGE_BASE_NAME_DUPLICATE);
+            }
+        }
+
+        // 更新字段
+        if (updateRequest.getName() != null) {
+            knowledgeBase.setName(updateRequest.getName());
+        }
+        if (updateRequest.getDescription() != null) {
+            knowledgeBase.setDescription(updateRequest.getDescription());
+        }
+        if (updateRequest.getIconIndex() != null) {
+            knowledgeBase.setIconIndex(updateRequest.getIconIndex());
+        }
+        if (updateRequest.getVisibility() != null) {
+            knowledgeBase.setVisibility(updateRequest.getVisibility());
+        }
+        if (updateRequest.getCoverUrl() != null) {
+            knowledgeBase.setCoverUrl(updateRequest.getCoverUrl());
+        }
+
+        boolean updated = updateById(knowledgeBase);
+        if (!updated) {
+            throw new BusinessException(ErrorCode.SYSTEM_ERROR, "知识库更新失败");
+        }
+
+        log.info("知识库更新成功: kbId={}", kbId);
+        return true;
     }
 
     /*
@@ -253,60 +310,7 @@ public class KnowledgeBaseServiceImpl extends ServiceImpl<KnowledgeBasesMapper, 
         return rootNodes;
     }
 
-    @Override
-    @Transactional
-    public boolean updateKnowledgeBase(Long kbId, InsertKnowledgeBaseRequest updateRequest) {
-        log.info("更新知识库: kbId={}, request={}", kbId, updateRequest);
 
-        if (kbId == null) {
-            throw new BusinessException(ErrorCode.PARAMS_ERROR, "知识库ID不能为空");
-        }
-
-        // 验证知识库是否存在且当前用户有权限修改(包含验证知识库存在性)
-        validateKnowledgeBaseOwnership(kbId);
-
-        KnowledgeBases knowledgeBase = getById(kbId);
-
-        // 如果要修改名称，检查是否重复
-        if (updateRequest.getName() != null && !updateRequest.getName().equals(knowledgeBase.getName())) {
-            // MyBatis Plus会自动过滤逻辑删除的数据
-            boolean nameExists = exists(
-                new LambdaQueryWrapper<KnowledgeBases>()
-                    .eq(KnowledgeBases::getUserId, knowledgeBase.getUserId())
-                    .eq(KnowledgeBases::getName, updateRequest.getName())
-                    .ne(KnowledgeBases::getId, kbId)
-            );
-
-            if (nameExists) {
-                throw new BusinessException(ErrorCode.KNOWLEDGE_BASE_NAME_DUPLICATE);
-            }
-        }
-
-        // 更新字段
-        if (updateRequest.getName() != null) {
-            knowledgeBase.setName(updateRequest.getName());
-        }
-        if (updateRequest.getDescription() != null) {
-            knowledgeBase.setDescription(updateRequest.getDescription());
-        }
-        if (updateRequest.getIconIndex() != null) {
-            knowledgeBase.setIconIndex(updateRequest.getIconIndex());
-        }
-        if (updateRequest.getVisibility() != null) {
-            knowledgeBase.setVisibility(updateRequest.getVisibility());
-        }
-        if (updateRequest.getCoverUrl() != null) {
-            knowledgeBase.setCoverUrl(updateRequest.getCoverUrl());
-        }
-
-        boolean updated = updateById(knowledgeBase);
-        if (!updated) {
-            throw new BusinessException(ErrorCode.SYSTEM_ERROR, "知识库更新失败");
-        }
-
-        log.info("知识库更新成功: kbId={}", kbId);
-        return true;
-    }
 
     @Override
     @Transactional
@@ -378,7 +382,7 @@ public class KnowledgeBaseServiceImpl extends ServiceImpl<KnowledgeBasesMapper, 
             throw new BusinessException(ErrorCode.KNOWLEDGE_BASE_NOT_FOUND, "知识库不存在或未被删除");
         }
 
-        // 检查权限
+        // 检查所有权,因为是删除了的知识库,不能用封装的方法
         if (!userId.equals(knowledgeBase.getUserId())) {
             throw new BusinessException(ErrorCode.KNOWLEDGE_BASE_ACCESS_DENIED);
         }

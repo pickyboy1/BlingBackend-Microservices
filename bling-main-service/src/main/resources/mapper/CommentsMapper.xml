@@ -80,7 +80,6 @@
             c.root_id = #{commentId}
           -- 确保我们只查询回复，而不是根评论本身
           AND c.pre_id IS NOT NULL
-          -- 确保关联的用户是有效的
 
           AND c.is_deleted = 0
 
